@@ -1,0 +1,131 @@
+"""Database core: engine, session factory, and async session management."""
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator, List, Optional
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, Text, String, Integer, DateTime, Float, Boolean
+import uuid
+from datetime import datetime
+from dotenv import load_dotenv
+import os
+
+
+# from pydantic import BaseModel
+
+# Moved from core/user_db.py to break circular import
+class User(SQLModel, table=True):
+    __tablename__ = "users"
+    # strikes: int = Field(default=0, nullable=True)
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    username: str = Field(unique=True, index=True, nullable=False)
+    email: str = Field(unique=True, index=True, nullable=False)
+    hashed_password: Optional[str] = Field(nullable=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    chats: List["Chat"] = Relationship(back_populates="user")
+    book_chats: List["BookChat"] = Relationship(back_populates="user")
+    notes: List["Note"] = Relationship(back_populates="user")
+
+load_dotenv()
+
+
+DATABASE_URL = "postgresql+psycopg://postgres:password@127.0.0.1:5432/learnindb"
+
+
+
+engine = create_async_engine(DATABASE_URL, echo=True, future=True)
+
+class Document(SQLModel, table=True):
+    file_id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    filename: str
+    upload_time: datetime = Field(default_factory=datetime.utcnow)
+    status: str = Field(default="uploaded")
+    processing_status: str = Field(default="pending")
+    total_pages: Optional[int] = None
+    total_chunks: Optional[int] = None
+    file_type: str
+    file_path: str
+    full_text_path: Optional[str] = None
+    processed_from_page: Optional[int] = None
+    processed_to_page: Optional[int] = None
+    book_chats: List["BookChat"] = Relationship(back_populates="document")
+    qa_history: List["DocumentQA"] = Relationship(back_populates="document")
+
+class DocumentQA(SQLModel, table=True):
+    __tablename__ = "document_qa"
+    id: int = Field(default=None, primary_key=True)
+    file_id: str = Field(foreign_key="document.file_id")
+    question: str
+    answer: str
+    sources: Optional[str] = None
+    confidence: Optional[float] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    document: Document = Relationship(back_populates="qa_history")
+
+
+class Notes(SQLModel, table=True):
+    id: int = Field(default=None, primary_key=True)
+    header: str
+    text: str
+    completed: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Note(SQLModel, table=True):
+    id: int = Field(default=None, primary_key=True)
+    chat_id: str = Field(foreign_key="chat.id", index=True)
+    user_id: str = Field(foreign_key="users.id", index=True)
+    content: str = Field(sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    chat: "Chat" = Relationship(back_populates="notes")
+    user: "User" = Relationship(back_populates="notes")
+
+
+class Chat(SQLModel, table=True):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    user_id: str = Field(foreign_key="users.id", index=True)
+    name: str = Field(default="Новый чат")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    messages: List["Message"] = Relationship(back_populates="chat", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    notes: List["Note"] = Relationship(back_populates="chat", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    user: User = Relationship(back_populates="chats")
+
+class Message(SQLModel, table=True):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    chat_id: str = Field(foreign_key="chat.id")
+    chat: Chat = Relationship(back_populates="messages")
+    role: str
+    content: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class BookChat(SQLModel, table=True):
+    __tablename__ = 'book_chat'
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    user_id: str = Field(foreign_key="users.id", index=True)
+    name: Optional[str] = None
+    file_id: str = Field(foreign_key="document.file_id")
+    messages: List["BookChatMessage"] = Relationship(back_populates="book_chat", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    document: Document = Relationship(back_populates="book_chats")
+    user: User = Relationship(back_populates="book_chats")
+
+class BookChatMessage(SQLModel, table=True):
+    id: int = Field(default=None, primary_key=True)
+    book_chat_id: str = Field(foreign_key="book_chat.id")
+    book_chat: "BookChat" = Relationship(back_populates="messages")
+    role: str
+    content: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+@asynccontextmanager
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    async_session = sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with async_session() as session:
+        yield session
