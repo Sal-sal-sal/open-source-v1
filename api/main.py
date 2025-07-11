@@ -28,7 +28,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Llama4SC API", version="0.1.0", lifespan=lifespan)
 
 # Allow cross-origin requests from development frontends
-origins = ['*']
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://74.249.178.56:5173",  # если используешь IP
+    "https://learntug.ink"        # прод-домен
+]
 
 app.add_middleware(
     CORSMiddleware,
