@@ -1,0 +1,448 @@
+@import "tailwindcss";
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #1b1b1b;
+  scroll-behavior: smooth;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+.fade-in-up {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.fade-in-up.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.animated-gradient-bg {
+    background-color: #1b1b1b; /* Fallback color */
+    background-image: 
+        /* Flares: from green to purple spectrum */
+        radial-gradient(at 15% 85%, hsla(140, 70%, 55%, 0.25) 0px, transparent 50%),
+        radial-gradient(at 80% 20%, hsla(180, 75%, 50%, 0.25) 0px, transparent 50%),
+        radial-gradient(at 90% 90%, hsla(280, 75%, 55%, 0.25) 0px, transparent 50%),
+        radial-gradient(at 20% 20%, hsla(210, 75%, 60%, 0.25) 0px, transparent 50%),
+        
+        /* Base dark blue gradient */
+        linear-gradient(-45deg, #0a0a1a, #0f172a, #1c2a4a);
+    
+    /* Different sizes for each layer to enhance random feel */
+    background-size: 150% 150%, 200% 200%, 180% 180%, 220% 220%, 400% 400%;
+    animation: gradient-animation 25s linear infinite;
+    position: relative;
+    overflow: hidden;
+}
+
+@keyframes gradient-animation {
+    0% {
+        background-position: 0% 100%, 100% 0%, 0% 0%, 100% 100%, 0% 100%;
+    }
+    25% {
+        background-position: 0% 0%, 100% 100%, 100% 0%, 0% 100%, 0% 0%;
+    }
+    50% {
+        background-position: 100% 0%, 0% 100%, 100% 100%, 0% 0%, 100% 0%;
+    }
+    75% {
+        background-position: 100% 100%, 0% 0%, 0% 100%, 100% 0%, 100% 100%;
+    }
+    100% {
+        background-position: 0% 100%, 100% 0%, 0% 0%, 100% 100%, 0% 100%;
+    }
+}
+
+.starfield-bg {
+  background: radial-gradient(ellipse at 50% 20%, hsl(210, 15%, 25%) 0%, hsl(210, 20%, 5%) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.stars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.stars1 {
+  background-image: radial-gradient(1px 1px at 20% 30%, white, transparent),
+                    radial-gradient(1px 1px at 80% 70%, white, transparent),
+                    radial-gradient(1px 1px at 55% 50%, white, transparent),
+                    radial-gradient(1px 1px at 10% 90%, white, transparent);
+  background-size: 300px 300px;
+  animation: move-stars 25s linear infinite;
+}
+
+.stars2 {
+  background-image: radial-gradient(2px 2px at 40% 60%, white, transparent),
+                    radial-gradient(2px 2px at 90% 10%, white, transparent),
+                    radial-gradient(2px 2px at 15% 45%, white, transparent);
+  background-size: 500px 500px;
+  animation: move-stars 20s linear infinite;
+}
+
+@keyframes move-stars {
+    from { transform: translateY(0px); }
+    to   { transform: translateY(-500px); }
+}
+
+/* Custom Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1C1C1C;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #4a4a4a;
+  border-radius: 4px;
+  border: 2px solid #1C1C1C;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #6a6a6a;
+}
+
+/* Constellation animations */
+.constellations {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none; /* Allows clicks to pass through, but children can enable them */
+  z-index: 5; /* Ensure constellations are above the dark overlay */
+}
+
+.constellation-group {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  pointer-events: auto; /* This group and its children can be interacted with */
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.constellation-group-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  animation: float-rotate 40s ease-in-out infinite;
+}
+
+.constellation {
+  position: absolute;
+  border-radius: 50%;
+  z-index: 2;
+  transition: transform 0.3s ease-in-out;
+  cursor: pointer;
+}
+
+.constellation:hover {
+  transform: scale(1.8);
+  z-index: 10;
+}
+
+.star-name {
+  position: absolute;
+  bottom: 160%; /* Move up to make space for pointer */
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #e2e8f0;
+  font-size: 14px;
+  font-weight: 700; /* Bolder text */
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease; /* Faster transition */
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  pointer-events: none;
+} 
+
+/* Pointer line for the star name container */
+.star-name::after {
+  content: '';
+  position: absolute;
+  top: 100%; /* Starts from the bottom of the name tag */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 22px; /* Length of the pointer */
+  background: rgba(148, 163, 184, 0.4);
+}
+
+.constellation:hover .star-name {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Star brightness levels */
+.star-bright {
+  width: 8px;
+  height: 8px;
+  opacity: 1;
+}
+
+.star-medium {
+  width: 6px;
+  height: 6px;
+  opacity: 0.8;
+}
+
+.star-dim {
+  width: 4px;
+  height: 4px;
+  opacity: 0.6;
+}
+
+/* Orbital connections */
+.constellation-line {
+  position: absolute;
+  background: linear-gradient(90deg, transparent 0%, currentColor 20%, currentColor 80%, transparent 100%);
+  opacity: 0.3;
+  animation: pulse-line 4s ease-in-out infinite;
+  border-radius: 1px;
+  height: 1px;
+  transform-origin: left center;
+}
+
+/* Constellation Orion */
+.constellation-orion {
+  left: 15%;
+  top: 10%;
+  animation-duration: 45s;
+}
+
+/* Orion stars - Betelgeuse (red), Rigel (blue), Bellatrix (blue-white), etc */
+.constellation-orion .star-betelgeuse {
+  top: 10%;
+  left: 20%;
+  background: #ff6b6b;
+  box-shadow: 0 0 20px #ff6b6b, 0 0 40px #ff6b6b;
+}
+
+.constellation-orion .star-rigel {
+  bottom: 15%;
+  right: 25%;
+  background: #4dabf7;
+  box-shadow: 0 0 20px #4dabf7, 0 0 40px #4dabf7;
+}
+
+.constellation-orion .star-bellatrix {
+  top: 15%;
+  right: 20%;
+  background: #74c0fc;
+  box-shadow: 0 0 15px #74c0fc, 0 0 30px #74c0fc;
+}
+
+.constellation-orion .star-alnitak {
+  top: 50%;
+  left: 30%;
+  background: #a5d8ff;
+  box-shadow: 0 0 12px #a5d8ff, 0 0 25px #a5d8ff;
+}
+
+.constellation-orion .star-alnilam {
+  top: 50%;
+  left: 50%;
+  background: #91a7ff;
+  box-shadow: 0 0 15px #91a7ff, 0 0 30px #91a7ff;
+}
+
+.constellation-orion .star-mintaka {
+  top: 50%;
+  right: 30%;
+  background: #b197fc;
+  box-shadow: 0 0 12px #b197fc, 0 0 25px #b197fc;
+}
+
+.constellation-orion .star-saiph {
+  bottom: 20%;
+  left: 25%;
+  background: #748ffc;
+  box-shadow: 0 0 10px #748ffc, 0 0 20px #748ffc;
+}
+
+/* Orion belt and connections - Recalculated for accuracy */
+/* Belt */
+.constellation-orion .line-belt1 { top: 50%; left: 50%; width: 20%; transform: rotate(180deg); } /* Alnilam to Alnitak */
+.constellation-orion .line-belt2 { top: 50%; left: 50%; width: 20%; transform: rotate(0deg); } /* Alnilam to Mintaka */
+/* Body */
+.constellation-orion .line-shoulder1 { top: 10%; left: 20%; width: 60.2%; transform: rotate(4.8deg); } /* Betelgeuse to Bellatrix */
+.constellation-orion .line-body1 { top: 10%; left: 20%; width: 50%; transform: rotate(53.1deg); } /* Betelgeuse to Alnilam */
+.constellation-orion .line-body2 { top: 50%; left: 50%; width: 46.1%; transform: rotate(-49.4deg); } /* Alnilam to Bellatrix */
+/* Legs */
+.constellation-orion .line-leg1 { top: 50%; left: 50%; width: 39.1%; transform: rotate(129.8deg); } /* Alnilam to Saiph */
+.constellation-orion .line-leg2 { top: 50%; left: 50%; width: 43.0%; transform: rotate(54.5deg); } /* Alnilam to Rigel */
+
+/* Constellation Leo */
+.constellation-leo {
+  right: 10%;
+  top: 40%;
+  animation-duration: 50s;
+  animation-delay: -20s;
+}
+
+/* Leo stars - Regulus (blue-white), Denebola (white), Algieba (orange) */
+.constellation-leo .star-regulus {
+  bottom: 30%;
+  left: 15%;
+  background: #e3f2fd;
+  box-shadow: 0 0 25px #e3f2fd, 0 0 50px #4dabf7;
+}
+
+.constellation-leo .star-denebola {
+  top: 40%;
+  right: 10%;
+  background: #f8f9fa;
+  box-shadow: 0 0 15px #f8f9fa, 0 0 30px #e9ecef;
+}
+
+.constellation-leo .star-algieba {
+  top: 20%;
+  left: 35%;
+  background: #ffd43b;
+  box-shadow: 0 0 20px #ffd43b, 0 0 40px #fab005;
+}
+
+.constellation-leo .star-zosma {
+  top: 35%;
+  left: 50%;
+  background: #ffe8cc;
+  box-shadow: 0 0 12px #ffe8cc, 0 0 25px #ffd8a8;
+}
+
+.constellation-leo .star-chertan {
+  top: 50%;
+  left: 40%;
+  background: #fff3bf;
+  box-shadow: 0 0 10px #fff3bf, 0 0 20px #ffe066;
+}
+
+.constellation-leo .star-adhafera {
+  top: 15%;
+  left: 20%;
+  background: #c5f6fa;
+  box-shadow: 0 0 10px #c5f6fa, 0 0 20px #66d9e8;
+}
+
+/* Leo sickle and body connections - Recalculated for accuracy */
+.constellation-leo .line-sickle1 { top: 15%; left: 20%; width: 15.8%; transform: rotate(18.4deg); } /* Adhafera to Algieba */
+.constellation-leo .line-sickle2 { top: 20%; left: 35%; width: 53.9%; transform: rotate(111.8deg); } /* Algieba to Regulus */
+.constellation-leo .line-sickle3 { top: 20%; left: 35%; width: 21.2%; transform: rotate(45deg); } /* Algieba to Zosma */
+.constellation-leo .line-body1 { top: 70%; left: 15%; width: 49.5%; transform: rotate(-45deg); } /* Regulus to Zosma */
+.constellation-leo .line-body2 { top: 35%; left: 50%; width: 40.3%; transform: rotate(7.1deg); } /* Zosma to Denebola */
+.constellation-leo .line-body3 { top: 70%; left: 15%; width: 80.8%; transform: rotate(-21.8deg); } /* Regulus to Denebola */
+
+/* Color variations for line connections */
+.constellation-orion .constellation-line {
+  color: #91a7ff;
+}
+
+.constellation-leo .constellation-line {
+  color: #ffd43b;
+}
+
+@keyframes float-rotate {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translateY(-15px) rotate(5deg) scale(1.02);
+  }
+  50% {
+    transform: translateY(10px) rotate(-3deg) scale(0.98);
+  }
+  75% {
+    transform: translateY(-5px) rotate(2deg) scale(1.01);
+  }
+}
+
+@keyframes pulse-line {
+  0%, 100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Remove old constellation group styles */
+.constellation-group-1,
+.constellation-group-2,
+.constellation-group-3,
+.constellation-group-4,
+.constellation-group-5 {
+  display: none;
+}
+
+/* Constellation Ursa Major (Big Dipper) */
+.constellation-ursa-major {
+  left: 10%;
+  bottom: 5%;
+  width: 400px; /* Wider for the shape */
+  animation-duration: 55s;
+  animation-delay: -30s;
+}
+
+/* Ursa Major stars - Bigger, more colorful */
+.constellation-ursa-major .star-bright { width: 12px; height: 12px; }
+.constellation-ursa-major .star-medium { width: 9px; height: 9px; }
+.constellation-ursa-major .star-dim { width: 7px; height: 7px; }
+
+/* RE-POSITIONED Stars for accurate Big Dipper shape */
+.constellation-ursa-major .star-dubhe { top: 30%; left: 85%; }
+.constellation-ursa-major .star-merak { top: 60%; left: 90%; }
+.constellation-ursa-major .star-phecda { top: 65%; left: 65%; }
+.constellation-ursa-major .star-megrez { top: 35%; left: 60%; }
+.constellation-ursa-major .star-alioth { top: 40%; left: 40%; }
+.constellation-ursa-major .star-mizar { top: 30%; left: 20%; }
+.constellation-ursa-major .star-alkaid { top: 15%; left: 0%; }
+
+.constellation-ursa-major .star-dubhe { background: #ffd700; box-shadow: 0 0 25px #ffd700, 0 0 45px #ffc400; }   /* Golden Yellow */
+.constellation-ursa-major .star-merak { background: #87cefa; box-shadow: 0 0 20px #87cefa, 0 0 40px #5a9bd8; }   /* Light Sky Blue */
+.constellation-ursa-major .star-phecda { background: #e6e6fa; box-shadow: 0 0 18px #e6e6fa, 0 0 36px #d8bfd8; }   /* Lavender */
+.constellation-ursa-major .star-megrez { background: #98ff98; box-shadow: 0 0 15px #98ff98, 0 0 30px #50c878; }   /* Mint Green */
+.constellation-ursa-major .star-alioth { background: #f0f8ff; box-shadow: 0 0 25px #f0f8ff, 0 0 45px #add8e6; }   /* Alice Blue (white with blue glow) */
+.constellation-ursa-major .star-mizar { background: #fff0f5; box-shadow: 0 0 20px #fff0f5, 0 0 40px #ffb6c1; }   /* Lavender Blush (pinkish) */
+.constellation-ursa-major .star-alkaid { background: #00ffff; box-shadow: 0 0 22px #00ffff, 0 0 44px #00ced1; }   /* Aqua/Cyan */
+
+/* Ursa Major connections - Final, high-precision recalculation for the classic Big Dipper shape */
+.constellation-ursa-major .line-1 { top: 15%; left: 0%; width: 25%; transform: rotate(36.9deg); }     /* Alkaid to Mizar */
+.constellation-ursa-major .line-2 { top: 30%; left: 20%; width: 22.4%; transform: rotate(26.6deg); } /* Mizar to Alioth */
+.constellation-ursa-major .line-3 { top: 40%; left: 40%; width: 20.6%; transform: rotate(-14.0deg); }  /* Alioth to Megrez */
+.constellation-ursa-major .line-4 { top: 35%; left: 60%; width: 30.4%; transform: rotate(80.5deg); }   /* Megrez to Phecda */
+.constellation-ursa-major .line-5 { top: 65%; left: 65%; width: 25.5%; transform: rotate(-11.3deg); }  /* Phecda to Merak */
+.constellation-ursa-major .line-6 { top: 60%; left: 90%; width: 30.4%; transform: rotate(-99.5deg); }  /* Merak to Dubhe */
+.constellation-ursa-major .line-7 { top: 30%; left: 85%; width: 25.5%; transform: rotate(168.7deg); }   /* Dubhe to Megrez */
+
+.constellation-ursa-major .constellation-line {
+  color: #87CEEB; /* Sky Blue */
+  box-shadow: 0 0 6px -2px #87CEEB;
+  height: 0.5px;
+  background: linear-gradient(90deg, transparent 0%, rgba(135, 206, 235, 0.6) 50%, transparent 100%);
+}
