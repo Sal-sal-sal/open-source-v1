@@ -1,0 +1,39 @@
+name: Deploy Frontend to Azure VM
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies and build frontend
+        run: |
+          cd study
+          npm ci
+          npm run build
+
+      - name: Copy build to VM via SCP
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "study/dist/*"
+          target: "/home/learnin/LearnIn/study/dist"
+
+      - name: Restart frontend server on VM
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            pkill -f "serve"
+            nohup npx serve -s /home/learnin/LearnIn/study/dist -l 5173 > frontend.log 2>&1 &
