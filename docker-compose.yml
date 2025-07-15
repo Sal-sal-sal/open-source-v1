@@ -26,14 +26,12 @@ services:
       - db
 
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
+  build:
+    context: ./study
+    dockerfile: Dockerfile
     ports:
       - "3000:80"
     depends_on:
       - backend
-
-volumes:
   postgres_data:
   uploads: 
