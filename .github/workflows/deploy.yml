@@ -10,13 +10,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Install Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
 
       - name: Install dependencies (frontend)
         working-directory: study
@@ -25,6 +25,7 @@ jobs:
       - name: Build frontend
         working-directory: study
         run: npm run build
+
       - name: Deploy to server via SCP
         uses: appleboy/scp-action@v0.1.4
         with:
