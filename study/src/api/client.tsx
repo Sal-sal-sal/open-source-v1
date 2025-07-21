@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { FileUploadResponse, ChatRequest, ChatResponse, DocumentInfo } from '../types';
 import { getToken } from '../utils/auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://74.249.178.56:8000';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://74.249.178.56:8000';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -52,3 +52,13 @@ export const api = {
     return response.data.documents;
   },
 }; 
+
+export const updateStudyTime = async (minutes: number) => {
+  const response = await apiClient.post('/api/profile/study-time', { minutes });
+  return response.data;
+}
+
+export const getUserProfile = async () => {
+  const response = await apiClient.get('/api/profile');
+  return response.data;
+}

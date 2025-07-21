@@ -17,6 +17,8 @@ from api.routes.book_chat import router as book_chat_router
 from api.routes.book_chat_api import router as book_chat_api_router
 from api.routes.history_notes import router as history_notes_router
 from api.routes.search import router as search_router
+from api.routes.tasks import router as tasks_router
+from api.routes.profile import router as profile_router # Импортируем новый роутер
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -58,3 +60,5 @@ app.include_router(book_chat_router)
 app.include_router(book_chat_api_router)
 app.include_router(history_notes_router)
 app.include_router(search_router) 
+app.include_router(tasks_router) 
+app.include_router(profile_router) # Регистрируем новый роутер

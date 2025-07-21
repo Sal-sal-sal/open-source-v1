@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { authFetch, clearToken } from '../utils/auth';
-import { Orbit, Search, FileEdit, CheckSquare, Book, History, ChevronLeft, MoreHorizontal, LogOut } from 'lucide-react';
+import { Orbit, Search, FileEdit, CheckSquare, Book, History, ChevronLeft, MoreHorizontal, LogOut, User } from 'lucide-react';
 import NotesModal from '../components/NotesModal';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
@@ -15,6 +15,7 @@ import {
   getChats,
 } from "../utils/chat";
 import { useChat } from '../contexts/ChatContext';
+import { useProfile } from '../hooks/useProfile';
 
 interface ChatSummary {
   id: string;
@@ -35,10 +36,11 @@ interface SearchResult {
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Mock user data for the profile section
-const mockUser = {
+// УДАЛЯЕМ ЭТОТ БЛОК ПОЛНОСТЬЮ ИЛИ КОММЕНТИРУЕМ, ЧТОБЫ ИЗБЕЖАТЬ ОШИБКИ ReferenceError
+/* const mockUser = {
   username: 'Saladin',
   avatarInitial: 'S',
-};
+}; */
 
 const SidebarLayout: React.FC = () => {
   const { t } = useTranslation();
@@ -53,6 +55,7 @@ const SidebarLayout: React.FC = () => {
   const { bookChats, historyChats, loadChats } = useChat();
   const [currentBookChats, setCurrentBookChats] = useState(bookChats);
   const [currentHistoryChats, setCurrentHistoryChats] = useState(historyChats);
+  const { profile, loading: profileLoading } = useProfile(); // Использование useProfile
 
   useEffect(() => {
     setCurrentBookChats(bookChats);
@@ -96,7 +99,7 @@ const SidebarLayout: React.FC = () => {
   };
 
   const requestNewChat = () => {
-    navigate("/documents");
+    navigate("/chat");
   };
 
   const handleDeleteChat = async (id: string, type: 'book' | 'history') => {
@@ -225,10 +228,26 @@ const SidebarLayout: React.FC = () => {
             <div className="mt-auto border-t border-gray-200 dark:border-gray-700/60 pt-2">
                 <div className="flex items-center p-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-gray-700/50">
                     <div className="flex items-center gap-3 flex-1">
-                        <div className="w-9 h-9 rounded-full bg-pink-500 flex items-center justify-center font-bold text-white text-lg">
-                            {mockUser.avatarInitial}
-                        </div>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{mockUser.username}</span>
+                        {profileLoading ? ( // Если профиль загружается
+                            <>
+                                <div className="w-9 h-9 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse"></div> {/* Скелетон для аватара */}
+                                <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-20 animate-pulse"></div> {/* Скелетон для имени */}
+                            </>
+                        ) : profile ? ( // Если профиль загружен
+                            <>
+                                <div onClick={() => navigate('/profile')} className="w-9 h-9 rounded-full bg-pink-500 flex items-center justify-center font-bold text-white text-lg cursor-pointer">
+                                    {profile.username.charAt(0).toUpperCase()} {/* Первая буква имени */}
+                                </div>
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white">{profile.username}</span> {/* Имя пользователя */}
+                            </>
+                        ) : ( // Если профиль не загружен (например, ошибка или не вошел)
+                            <>
+                                <div onClick={() => navigate('/profile')} className="w-9 h-9 rounded-full bg-gray-400 flex items-center justify-center font-bold text-white text-lg cursor-pointer">
+                                    <User className="w-5 h-5" /> {/* Иконка User */}
+                                </div>
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white">{t('User')}</span> {/* Запасной текст "User" */}
+                            </>
+                        )}
                     </div>
                     <div className="flex items-center gap-1">
                         <LanguageSwitcher />

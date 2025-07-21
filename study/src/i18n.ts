@@ -27,7 +27,8 @@ const resources = {
       "PrevPages": "Previous {{count}}",
       "NextPages": "Next {{count}}",
       "Pages": "Pages",
-      "Notes": "Notes"
+      "Notes": "Notes",
+      "Audio": "Audio"
     }
   },
   ru: {
@@ -53,7 +54,8 @@ const resources = {
         "PrevPages": "Предыдущие {{count}}",
         "NextPages": "Следующие {{count}}",
         "Pages": "Страницы",
-        "Notes": "Заметки"
+        "Notes": "Заметки",
+        "Audio": "Аудио"
     }
   }
 };

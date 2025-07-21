@@ -133,28 +133,13 @@ const LandingPage: React.FC = () => {
             )}
           </button>
           
-          <div className="relative z-20">
+          <div className="relative z-20 flex flex-col items-center">
             <h1 className="text-5xl md:text-7xl font-extrabold mb-4 leading-tight">
               Welcome to the Future of <span className="text-cyan-400">Science Education</span>
             </h1>
-            <p className="text-lg md:text-xl text-gray-300 max-w-3xl mb-8">
-              Load your document, wait a bit , Get your feedback from AI and ask questions about what you read..
+            <p className="text-lg md:text-xl text-gray-300 max-w-3xl mb-8 ">
+              Load your document, wait a bit , Get your feedback from AI and ask questions about what you read.
             </p>
-            <form onSubmit={handleSubscribe} className="flex justify-center w-full max-w-2xl mx-auto">
-              <input
-                type="email"
-                name="email"
-                placeholder="Enter your email to get started"
-                className="bg-[#3b3b3b] hover:bg-gray-900/60 text-white px-4 py-3 text-lg rounded-l-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 w-full"
-                required
-              />
-              <button
-                type="submit"
-                className="bg-cyan-500/30 hover:bg-cyan-600 text-black font-bold py-3 px-6 text-lg rounded-r-lg transition-colors"
-              >
-                Join the Waitlist
-              </button>
-            </form>
           </div>
         </section>
 

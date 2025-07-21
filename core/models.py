@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
+from sqlmodel import Field, Relationship, SQLModel, Column, Integer, DateTime
+from datetime import datetime, date
 
 class FileUploadResponse(BaseModel):
     file_id: str
@@ -99,3 +101,26 @@ class ChatSummary(BaseModel):
 
     class Config:
         from_attributes = True 
+
+class UserInfo(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    username: str = Field(index=True, unique=True)
+    hashed_password: str
+    email: str | None = Field(default=None, unique=True)
+    is_active: bool = Field(default=True)
+    is_superuser: bool = Field(default=False)
+
+    # Новые поля для профиля
+    total_study_time: int = Field(default=0)  # Общее время обучения в секундах/минутах
+    study_streak_days: int = Field(default=0) # Количество дней стрика
+    last_study_date: date | None = Field(default=None) # Дата последнего обучения для расчета стрика
+
+
+# Pydantic модель для ответа API профиля
+class UserProfileResponse(SQLModel):
+    username: str
+    total_study_time: int
+    study_streak_days: int
+    # Можете добавить другие поля, если хотите, например:
+    # email: str | None
+    # last_study_date: date | None 

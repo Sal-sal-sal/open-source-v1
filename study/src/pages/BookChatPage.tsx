@@ -157,9 +157,22 @@ const BookChatPage: React.FC = () => {
                             placeholder="Ask a question about the book..."
                             className="bg-gray-100 dark:bg-[#1b1b1b] border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white w-full rounded-full py-3 pl-6 pr-14 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                         />
-                        <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 bg-cyan-500 hover:bg-cyan-600 text-black p-2 rounded-full transition-colors w-10 h-10 flex items-center justify-center">
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" transform="rotate(270 12 12)"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14m-7-7l7 7-7 7"/></svg>
-                        </button>
+                        <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 bg-cyan-100 hover:bg-cyan-200 text-black p-2 rounded-full transition-colors w-10 h-10 flex items-center justify-center">
+                          <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        style={{ transform: 'rotate(270deg)' }} // лучше задать через стиль
+                        >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M2 12h17m-7-7l7 7-7 7"
+                        />
+                          </svg>
+                      </button>
                     </form>
                 </div>
             </div>
