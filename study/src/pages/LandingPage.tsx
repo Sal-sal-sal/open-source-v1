@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useStarInteraction } from '../hooks/useStarInteraction';
+import Stars from '../components/Effects/Stars';
 
 // Firebase Realtime Database base URL (can be overridden via Vite env var)
 const FIREBASE_URL = import.meta.env.VITE_FIREBASE_URL || 'https://landing-44432-default-rtdb.firebaseio.com';
@@ -71,6 +72,7 @@ const LandingPage: React.FC = () => {
 
   return (
     <div className="bg-black text-gray-200 font-sans">
+      <Stars />
       {/* Header */}
       <header className="sticky top-0 z-50 backdrop-blur-sm border-b border-gray-800">
         <div className="container mx-auto flex justify-between items-center p-4">

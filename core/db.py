@@ -22,9 +22,12 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, index=True, nullable=False)
     hashed_password: Optional[str] = Field(nullable=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    total_study_time: int = Field(default=0, nullable=True)
+    study_streak_days: int = Field(default=0, nullable=True)
 
     chats: List["Chat"] = Relationship(back_populates="user")
     book_chats: List["BookChat"] = Relationship(back_populates="user")
+    audio_chats: List["AudioChat"] = Relationship(back_populates="user") # Новая связь
     notes: List["Note"] = Relationship(back_populates="user")
 
 load_dotenv()
@@ -39,6 +42,7 @@ engine = create_async_engine(DATABASE_URL, echo=True, future=True)
 class Document(SQLModel, table=True):
     file_id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     filename: str
+    user_id: str = Field(foreign_key="users.id", index=True)
     upload_time: datetime = Field(default_factory=datetime.utcnow)
     status: str = Field(default="uploaded")
     processing_status: str = Field(default="pending")
@@ -50,6 +54,7 @@ class Document(SQLModel, table=True):
     processed_from_page: Optional[int] = None
     processed_to_page: Optional[int] = None
     book_chats: List["BookChat"] = Relationship(back_populates="document")
+    audio_chats: List["AudioChat"] = Relationship(back_populates="document") # Новая связь
     qa_history: List["DocumentQA"] = Relationship(back_populates="document")
 
 class DocumentQA(SQLModel, table=True):
@@ -72,15 +77,23 @@ class Notes(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Note(SQLModel, table=True):
+    __tablename__ = "structured_notes"
     id: int = Field(default=None, primary_key=True)
-    chat_id: str = Field(foreign_key="chat.id", index=True)
     user_id: str = Field(foreign_key="users.id", index=True)
-    content: str = Field(sa_column=Column(Text))
+    chat_id: Optional[str] = Field(foreign_key="chat.id", index=True, nullable=True)
+    
+    title: str
+    meaning: str = Field(sa_column=Column(Text))
+    association: str = Field(sa_column=Column(Text))
+    personal_relevance: str = Field(sa_column=Column(Text))
+    importance: str = Field(sa_column=Column(Text))
+    implementation_plan: Optional[str] = Field(sa_column=Column(Text, nullable=True))
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    chat: "Chat" = Relationship(back_populates="notes")
     user: "User" = Relationship(back_populates="notes")
+    chat: Optional["Chat"] = Relationship(back_populates="notes")
 
 
 class Chat(SQLModel, table=True):
@@ -114,6 +127,26 @@ class BookChatMessage(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
     book_chat_id: str = Field(foreign_key="book_chat.id")
     book_chat: "BookChat" = Relationship(back_populates="messages")
+    role: str
+    content: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Новые модели для аудио-чата
+class AudioChat(SQLModel, table=True):
+    __tablename__ = 'audio_chat'
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    user_id: str = Field(foreign_key="users.id", index=True)
+    name: Optional[str] = None
+    file_id: str = Field(foreign_key="document.file_id") # Связь с Document, где хранится аудио
+    messages: List["AudioChatMessage"] = Relationship(back_populates="audio_chat", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    document: Document = Relationship(back_populates="audio_chats")
+    user: User = Relationship(back_populates="audio_chats")
+
+class AudioChatMessage(SQLModel, table=True):
+    __tablename__ = 'audio_chat_message'
+    id: int = Field(default=None, primary_key=True)
+    audio_chat_id: str = Field(foreign_key="audio_chat.id")
+    audio_chat: "AudioChat" = Relationship(back_populates="messages")
     role: str
     content: str
     created_at: datetime = Field(default_factory=datetime.utcnow)

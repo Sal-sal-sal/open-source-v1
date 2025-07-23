@@ -8,6 +8,7 @@ import { PlusCircle } from 'lucide-react';
 import { useNotes } from '../contexts/NotesContext';
 import PageRangeModal from '../components/PageRangeModal';
 import { createBookChat } from '../utils/chat';
+import { trackChatMessage, trackPageView, trackError } from '../utils/analytics';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -65,6 +66,11 @@ const BookChatPage: React.FC = () => {
         fetchChatData();
     }, [chatId]);
 
+    useEffect(() => {
+        // Track page view
+        trackPageView('book_chat');
+    }, []);
+
     const handleProcessClick = () => {
         setIsModalOpen(true);
     };
@@ -117,8 +123,12 @@ const BookChatPage: React.FC = () => {
             if (!res.ok) throw new Error('Failed to send message');
             const data = await res.json();
             setMessages((prev) => [...prev, data.ai_response]);
+            
+            // Track book chat message
+            trackChatMessage('book');
         } catch (err) {
             console.error(err);
+            trackError('book_chat_message_failed', err instanceof Error ? err.message : 'Unknown error');
         }
     };
     

@@ -54,7 +54,7 @@ const IntroView: React.FC<IntroViewProps> = ({ inputValue, setInputValue, onSubm
   const [textis, setTextis] = useState(false);
   return (
     <div className="flex flex-col items-center w-full gap-8">
-      <form onSubmit={onSubmit} className="w-full max-w-lg relative">
+      <form onSubmit={onSubmit} className="w-full max-w-lg relative ">        
         <input
           type="text"
           placeholder={t('AskSomething') || 'Спроси что-нибудь!'}
@@ -192,21 +192,71 @@ const ChatPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const chatId = searchParams.get('chat_id');
-  
   const { createChat } = useChat();
-
   const [isDocumentMode, setIsDocumentMode] = useState(false);
   const [isBookChatMode, setIsBookChatMode] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [isAudioMode, setIsAudioMode] = useState(false);
-  const showIntro = !chatId;
   const { t } = useTranslation();
   const isIdle = useIdle(15000); // 15 seconds
+  const showIntro = !chatId;
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-  
+
+  useEffect(() => {
+    const openChat = async (id: string) => {
+      try {
+        const res = await authFetch(`${API_BASE}/api/chat/${id}/messages`);
+        if (res.status === 401) {
+          clearToken();
+          navigate('/login');
+          throw new Error('Unauthorized');
+        }
+        const data = await res.json();
+        const formatted: Message[] = data.map((m: any, idx: number) => ({
+          id: m.id || crypto.randomUUID(),
+          text: m.content || '',
+          sender: m.role === 'assistant' ? 'assistant' : 'user',
+          timestamp: '',
+        }));
+        setMessages(formatted);
+      } catch (err) {
+        console.error('Failed to load chat messages', err);
+      }
+    };
+    
+    const pendingMessage = sessionStorage.getItem('pendingMessage');
+    const pendingVideoUrl = sessionStorage.getItem('pendingVideoUrl');
+
+    if (chatId && pendingVideoUrl) {
+        sessionStorage.removeItem('pendingVideoUrl');
+        fetchVideoSummary(pendingVideoUrl, chatId, true);
+    } else if (chatId && pendingMessage) {
+      sessionStorage.removeItem('pendingMessage');
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        text: pendingMessage,
+        sender: 'user',
+        timestamp: getFormattedTimestamp(),
+      };
+      setMessages([userMessage]);
+      streamAIResponse(pendingMessage, chatId);
+    } else if (chatId) {
+        openChat(chatId);
+    }
+    else {
+        setMessages([]);
+    }
+  }, [chatId, navigate]);
+
+  useEffect(() => {
+    if (isAudioMode) {
+      navigate('/audio');
+    }
+  }, [isAudioMode, navigate]);
+
   const getFormattedTimestamp = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const fetchVideoSummary = async (url: string, forChatId: string, isNewChat: boolean) => {
@@ -263,55 +313,7 @@ const ChatPage: React.FC = () => {
         await createChat(`Summary for: ${url}`);
     }
   };
-
-  useEffect(() => {
-    const openChat = async (id: string) => {
-      try {
-        const res = await authFetch(`${API_BASE}/api/chat/${id}/messages`);
-        if (res.status === 401) {
-          clearToken();
-          navigate('/login');
-          throw new Error('Unauthorized');
-        }
-        const data = await res.json();
-        const formatted: Message[] = data.map((m: any, idx: number) => ({
-          id: m.id || crypto.randomUUID(), // Use message ID from backend, fallback to index
-          text: m.content || '',
-          sender: m.role === 'assistant' ? 'assistant' : 'user',
-          timestamp: '',
-        }));
-        setMessages(formatted);
-      } catch (err) {
-        console.error('Failed to load chat messages', err);
-      }
-    };
-    
-    const pendingMessage = sessionStorage.getItem('pendingMessage');
-    const pendingVideoUrl = sessionStorage.getItem('pendingVideoUrl');
-
-    if (chatId && pendingVideoUrl) {
-        sessionStorage.removeItem('pendingVideoUrl');
-        // The user message is already created by createChat, so just fetch summary
-        fetchVideoSummary(pendingVideoUrl, chatId, true);
-    } else if (chatId && pendingMessage) {
-      const userMessage: Message = {
-        id: crypto.randomUUID(),
-        text: pendingMessage,
-        sender: 'user',
-        timestamp: getFormattedTimestamp(),
-      };
-      setMessages([userMessage]);
-      
-      // Call the streaming function
-      streamAIResponse(pendingMessage, chatId);
-    } else if (chatId) {
-        openChat(chatId);
-    }
-    else {
-        setMessages([]);
-    }
-  }, [chatId, navigate]);
-
+  
   const streamAIResponse = async (prompt: string, id: string) => {
     // 1. Add a placeholder for the assistant's response
     const assistantId = crypto.randomUUID();
@@ -426,7 +428,7 @@ const ChatPage: React.FC = () => {
   }
 
   if (isAudioMode) {
-    navigate('/audio');
+    return null; // Or a loading spinner, since the useEffect will navigate away
   }
 
   return (

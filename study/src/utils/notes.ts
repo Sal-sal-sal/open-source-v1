@@ -1,4 +1,5 @@
 import { authFetch } from './auth';
+import { trackNoteCreated, trackError } from './analytics';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -19,17 +20,26 @@ export const getNotes = async (chatId: string): Promise<Note[]> => {
 };
 
 export const createNote = async (chatId: string, content: string): Promise<Note> => {
-  const response = await authFetch(`${API_BASE}/api/chats/${chatId}/notes`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ content }),
-  });
-  if (!response.ok) {
-    throw new Error('Failed to create note');
+  try {
+    const response = await authFetch(`${API_BASE}/api/chats/${chatId}/notes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create note');
+    }
+    
+    // Track note creation
+    trackNoteCreated('manual');
+    
+    return response.json();
+  } catch (error) {
+    trackError('note_creation_failed', error instanceof Error ? error.message : 'Unknown error');
+    throw error;
   }
-  return response.json();
 };
 
 export const updateNote = async (noteId: number, content: string): Promise<Note> => {

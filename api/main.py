@@ -12,14 +12,15 @@ from api.routes.video import router as video_router
 from api.routes.upload import router as upload_router
 from api.routes.file import router as file_router
 from api.routes.ai_teacher import router as ai_teacher_router
-from api.routes.notes import router as notes_router
 from api.routes.book_chat import router as book_chat_router
 from api.routes.book_chat_api import router as book_chat_api_router
 from api.routes.history_notes import router as history_notes_router
 from api.routes.search import router as search_router
 from api.routes.tasks import router as tasks_router
-from api.routes.profile import router as profile_router # Импортируем новый роутер
-
+from api.routes.profile import router as profile_router 
+from api.routes.audio import router as audio_router
+from api.routes.structured_notes import router as structured_notes_router
+from api.routes.audio_chat import router as audio_chat_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Initializing database...")
@@ -55,10 +56,12 @@ app.include_router(video_router)
 app.include_router(upload_router)
 app.include_router(file_router)
 app.include_router(ai_teacher_router, prefix="/api")
-app.include_router(notes_router)
 app.include_router(book_chat_router)
 app.include_router(book_chat_api_router)
 app.include_router(history_notes_router)
 app.include_router(search_router) 
 app.include_router(tasks_router) 
 app.include_router(profile_router) # Регистрируем новый роутер
+app.include_router(audio_router)
+app.include_router(structured_notes_router)
+app.include_router(audio_chat_router)

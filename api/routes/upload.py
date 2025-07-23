@@ -28,6 +28,7 @@ async def upload_file(
             doc_info = await document_processor.save_document(
                 file_path=str(saved_file_path),
                 filename=file.filename,
+                user_id=current_user.id,
                 db=session
             )
 

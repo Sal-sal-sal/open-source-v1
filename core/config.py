@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     google_api_key: str | None = None
     google_cx_id: str | None = None
 
+    # --- Google OAuth ---
+    google_client_id: str | None = None
+
     # --- File upload limits ---
     max_file_size_mb: int = 10
     allowed_extensions: List[str] = ["pdf", "txt"]

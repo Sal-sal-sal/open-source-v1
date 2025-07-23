@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getUserProfile, updateStudyTime } from '../api/client';
 import type { UserInfo } from '../types/index.ts'; // Renamed UserInfo to Profile
+import { authFetch } from '../utils/auth';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface UseProfileResult {
   userInfo: UserInfo | null;
@@ -15,11 +18,15 @@ export const useProfile = (): UseProfileResult => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getUserProfile();
+      const response = await authFetch(`${API_BASE_URL}/api/profile`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch user profile');
+      }
+      const data = await response.json();
       setUserInfo(data);
     } catch (err) {
       console.error("Failed to fetch user profile:", err);
@@ -27,11 +34,11 @@ export const useProfile = (): UseProfileResult => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchUserProfile();
-  }, []);
+  }, [fetchUserProfile]);
 
   const addStudyMinutes = async (minutes: number) => {
     setError(null);

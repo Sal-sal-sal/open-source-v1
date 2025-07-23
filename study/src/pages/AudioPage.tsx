@@ -1,87 +1,80 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import axios from 'axios';
-
-import { API_BASE_URL } from '../api/client'; // Предполагаю, что это определено в client.tsx
+import { apiClient } from '../api/client';
+import { FaMusic } from 'react-icons/fa';
 
 const AudioPage: React.FC = () => {
   const { t } = useTranslation();
-  const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string>('');
-  const [transcript, setTranscript] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [title, setTitle] = useState<string>(''); // Для заголовка
-  const [subtitle, setSubtitle] = useState<string>(''); // Для подзаголовка
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setAudioFile(e.target.files[0]);
-    }
-  };
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (!file) return;
 
-  const handleUploadAndTranscribe = async () => {
-    if (!audioFile) return;
     setLoading(true);
+    setError(null);
 
     try {
-      // Загрузка аудио
-      const formData = new FormData();
-      formData.append('file', audioFile);
-      const loadResponse = await axios.post(`${API_BASE_URL}/api/audio/load`, formData, {
+      // Step 1: Upload the file and get the file_id
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+      
+      const uploadResponse = await apiClient.post('/api/audio/load', uploadFormData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      const { file_path } = loadResponse.data;
-      setAudioUrl(file_path); // Или полный URL, если нужно
+      const { file_id } = uploadResponse.data;
 
-      // Транскрипция
-      const transcriptResponse = await axios.post(`${API_BASE_URL}/api/audio/transcript/`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      if (!file_id) {
+        throw new Error("File upload did not return a file_id.");
+      }
+
+      // Step 2: Create the audio chat with the new file_id
+      const chatResponse = await apiClient.post('/api/audio-chats/', {
+        file_id: file_id,
+        name: file.name.replace(/\.[^/.]+$/, "") // Use filename as title
       });
-      setTranscript(transcriptResponse.data.transcript);
+      const { id: audio_chat_id } = chatResponse.data;
 
-      // Симулируем заголовок и подзаголовок (можно генерировать из транскрипции)
-    } catch (error) {
-      console.error('Error uploading or transcribing audio:', error);
-    } finally {
+      // Step 3: Navigate to the new chat page
+      navigate(`/audio-chat/${audio_chat_id}`);
+
+    } catch (err) {
+      setError('Failed to create audio session. Please try again.');
+      console.error(err);
       setLoading(false);
     }
-  };
+  }, [navigate]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'audio/mpeg': ['.mp3'], 'audio/wav': ['.wav'] },
+    multiple: false,
+  });
 
   return (
-    <div className="min-h-screen bg-[#1b1b1b] text-white flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-2xl bg-gray-900 rounded-lg overflow-hidden shadow-lg">
-        {/* Заголовок и подзаголовок */}
-        <div className="relative bg-gradient-to-r from-blue-900 to-black p-6">
-          <img src="" alt="" />
-          <span className="absolute top-2 left-2 bg-red-600 text-xs px-2 py-1 rounded">Аудиокнига</span>
-          <h1 className="text-3xl font-bold text-center">{title || 'Заголовок аудио'}</h1>
-          <h2 className="text-xl text-center text-gray-300">{subtitle || 'Подзаголовок'}</h2>
-        </div>
-
-        {/* Текст транскрипции */}
-        <div className="p-6 text-lg leading-relaxed">
-          <p>{transcript || 'Здесь будет текст транскрипции аудио...'}</p>
-        </div>
-
-        {/* Аудио плеер */}
-        <div className="bg-gray-800 p-4 flex items-center justify-between">
-          <audio controls src={audioUrl} className="w-full">
-            Your browser does not support the audio element.
-          </audio>
+    <div className="flex flex-col items-center justify-center h-full p-4">
+      <div
+        {...getRootProps()}
+        className={`w-full max-w-lg p-10 border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors
+        ${isDragActive ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/10' : 'border-gray-400 dark:border-gray-600 hover:border-blue-400'}`}
+      >
+        <input {...getInputProps()} />
+        <div className="flex flex-col items-center">
+          <FaMusic className="w-16 h-16 text-gray-400 dark:text-gray-500 mb-4" />
+          <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+            {t('Загрузите сюда свой mp3 с аудио книгой')}
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {t('Перетащите файл или кликните для выбора')}
+          </p>
         </div>
       </div>
-
-      {/* Форма загрузки */}
-      <div className="mt-8">
-        <input type="file" accept="audio/*" onChange={handleFileChange} className="mb-4" />
-        <button
-          onClick={handleUploadAndTranscribe}
-          disabled={loading || !audioFile}
-          className="bg-cyan-500 hover:bg-cyan-600 text-black py-2 px-4 rounded"
-        >
-          {loading ? t('Processing') : t('Transcribe')}
-        </button>
-      </div>
+      {loading && <p className="mt-4 text-lg">{t('Загрузка и обработка...')}</p>}
+      {error && <p className="mt-4 text-red-500">{error}</p>}
     </div>
   );
 };

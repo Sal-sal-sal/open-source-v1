@@ -9,6 +9,7 @@ import PageRangeModal from '../components/PageRangeModal';
 import { useNavigate } from 'react-router-dom';
 import { FileUploadForm } from '../components/FileUploadForm';
 import type { FileUploadResponse } from '../types/index';
+import { trackFileUpload, trackDocumentProcessed, trackPageView, trackError } from '../utils/analytics';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -78,6 +79,11 @@ const DocumentView: React.FC = () => {
         }
     }, [messages]);
 
+    useEffect(() => {
+        // Track page view
+        trackPageView('document_view');
+    }, []);
+
     // Handle keyboard shortcuts for page navigation
     useEffect(() => {
         const handleKeyPress = (e: KeyboardEvent) => {
@@ -122,10 +128,14 @@ const DocumentView: React.FC = () => {
                 if (!uploadRes.ok) throw new Error('Failed to upload file.');
                 const uploadData = await uploadRes.json();
 
+                // Track file upload
+                trackFileUpload(uploadedFile.type, uploadedFile.size);
+
                 // Store fileId for later processing
                 setFileId(uploadData.file_id);
             } catch (err) {
                 console.error("Error during document upload:", err);
+                trackError('document_upload_failed', err instanceof Error ? err.message : 'Unknown error');
             }
         }
     };
@@ -172,6 +182,11 @@ const DocumentView: React.FC = () => {
             });
 
             if (!processRes.ok) throw new Error('Failed to process document.');
+            
+            console.log('Document processed successfully');
+            
+            // Track document processing
+            trackDocumentProcessed('pdf', end - start + 1);
 
             // After processing, create BookChat
             const newChat = await createBookChat(fileId, file.name);
@@ -184,6 +199,7 @@ const DocumentView: React.FC = () => {
 
         } catch (err) {
             console.error("Error during document processing and chat creation:", err);
+            trackError('document_processing_failed', err instanceof Error ? err.message : 'Unknown error');
         } finally {
             setIsProcessingDoc(false);
         }

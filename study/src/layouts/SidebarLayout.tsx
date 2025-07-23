@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { authFetch, clearToken } from '../utils/auth';
-import { Orbit, Search, FileEdit, CheckSquare, Book, History, ChevronLeft, MoreHorizontal, LogOut, User } from 'lucide-react';
+import { Orbit, Search, FileEdit, CheckSquare, Book, History, ChevronLeft, MoreHorizontal, LogOut, User, FileText, PenTool } from 'lucide-react';
 import NotesModal from '../components/NotesModal';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
@@ -16,6 +16,7 @@ import {
 } from "../utils/chat";
 import { useChat } from '../contexts/ChatContext';
 import { useProfile } from '../hooks/useProfile';
+import { FaMusic, FaBookOpen } from 'react-icons/fa';
 
 interface ChatSummary {
   id: string;
@@ -27,10 +28,15 @@ interface BookChat {
     name?: string;
 }
 
+interface AudioChat {
+    id: string;
+    name?: string;
+}
+
 interface SearchResult {
   id: string;
   name: string;
-  type: "chat" | "book_chat";
+  type: "chat" | "book_chat" | "audio_chat";
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -55,7 +61,9 @@ const SidebarLayout: React.FC = () => {
   const { bookChats, historyChats, loadChats } = useChat();
   const [currentBookChats, setCurrentBookChats] = useState(bookChats);
   const [currentHistoryChats, setCurrentHistoryChats] = useState(historyChats);
-  const { profile, loading: profileLoading } = useProfile(); // Использование useProfile
+  const [audioChats, setAudioChats] = useState<AudioChat[]>([]);
+  const [isLoadingAudioChats, setIsLoadingAudioChats] = useState(true);
+  const { userInfo, loading: profileLoading } = useProfile(); // Использование useProfile
 
   useEffect(() => {
     setCurrentBookChats(bookChats);
@@ -98,11 +106,15 @@ const SidebarLayout: React.FC = () => {
     navigate(`/chat?chat_id=${id}`);
   };
 
+  const openAudioChat = (id: string) => {
+    navigate(`/audio-chat/${id}`);
+  };
+
   const requestNewChat = () => {
     navigate("/chat");
   };
 
-  const handleDeleteChat = async (id: string, type: 'book' | 'history') => {
+  const handleDeleteChat = async (id: string, type: 'book' | 'history' | 'audio') => {
     if (
       !window.confirm(`Are you sure you want to delete this chat?`)
     )
@@ -110,8 +122,12 @@ const SidebarLayout: React.FC = () => {
     try {
       if (type === 'book') {
         await deleteBookChat(id);
-      } else {
+      } else if (type === 'history') {
         await deleteChat(id);
+      } else if (type === 'audio') {
+        // TODO: Implement audio chat deletion when backend endpoint is available
+        console.log("Audio chat deletion not yet implemented");
+        return;
       }
       
       // Refresh the lists from the context
@@ -134,6 +150,25 @@ const SidebarLayout: React.FC = () => {
   useEffect(() => {
     loadChats();
   }, [loadChats]);
+
+  // Загружаем аудио чаты
+  useEffect(() => {
+    const fetchAudioChats = async () => {
+      try {
+        const response = await authFetch('/api/audio-chats/');
+        if (response.ok) {
+          const data = await response.json();
+          setAudioChats(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch audio chats:", err);
+      } finally {
+        setIsLoadingAudioChats(false);
+      }
+    };
+
+    fetchAudioChats();
+  }, []);
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-[#1C1C1C] text-gray-800 dark:text-gray-300 font-sans">
@@ -167,10 +202,50 @@ const SidebarLayout: React.FC = () => {
             {/* Scrollable Area */}
             <div className="flex-1 overflow-y-auto min-h-0">
                 <div className="flex flex-col gap-2 mb-4">
-                    <a href="/chat" className={`flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium ${location.pathname.startsWith('/chat') ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' : 'hover:bg-gray-200/50 dark:hover:bg-gray-700/50'}`}>
+                    <Link to="/chat" className={`flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium ${location.pathname.startsWith('/chat') ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' : 'hover:bg-gray-200/50 dark:hover:bg-gray-700/50'}`}>
                         <FileEdit className="h-5 w-5 text-aliceblue" />
                         {t('Chat')}
-                    </a>
+                    </Link>
+
+                    <Link to="/audio" className={`flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium ${location.pathname.startsWith('/audio') ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-dark' : 'hover:bg-gray-200/50 dark:hover:bg-gray-200/50'}`}>
+                        <FaBookOpen className="h-5 w-5 text-aliceblue" />
+                        {t('Audio Books')}
+                    </Link>
+
+                    <Link to="/notes" className={`flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium ${location.pathname.startsWith('/notes') ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' : 'hover:bg-gray-200/50 dark:hover:bg-gray-700/50'}`}>
+                        <div className="relative">
+                            <FileText className="h-5 w-5 text-aliceblue" />
+                            <PenTool className="h-3 w-3 text-aliceblue absolute -top-1 -right-1" />
+                        </div>
+                        {t('Notes')}
+                    </Link>
+                </div>
+
+                {/* Audio Chats Section */}
+                <div className="flex items-center gap-3 px-3 py-2 text-xs font-semibold text-gray-400 dark:text-gray-500">
+                    <FaMusic className="h-4 w-4 text-aliceblue" />
+                    <span>Audio Chats</span>
+                </div>
+                <div className="flex flex-col gap-1 px-3 mt-2">
+                    {isLoadingAudioChats ? (
+                        <p className="text-center text-gray-400 dark:text-gray-500 text-sm py-2">Loading...</p>
+                    ) : audioChats.length > 0 ? (
+                        audioChats.map((chat) => (
+                            <button
+                                key={chat.id}
+                                onClick={() => openAudioChat(chat.id)}
+                                className={`group w-full flex items-center justify-between text-left py-1 px-3 rounded-full text-sm truncate ${chatId === chat.id ? 'text-cyan-600 dark:text-cyan-400 bg-gray-200 dark:bg-gray-700' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                                title={chat.name}
+                            >
+                                <span className="flex-1 truncate">{chat.name}</span>
+                                <span onClick={(e) => {e.stopPropagation(); handleDeleteChat(chat.id, 'audio')}} className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600">
+                                    <MoreHorizontal className="w-4 h-4" />
+                                </span>
+                            </button>
+                        ))
+                    ) : (
+                        <p className="text-center text-gray-400 dark:text-gray-500 text-sm py-2">No audio chats yet</p>
+                    )}
                 </div>
 
                 {/* Books Section */}
@@ -233,12 +308,12 @@ const SidebarLayout: React.FC = () => {
                                 <div className="w-9 h-9 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse"></div> {/* Скелетон для аватара */}
                                 <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-20 animate-pulse"></div> {/* Скелетон для имени */}
                             </>
-                        ) : profile ? ( // Если профиль загружен
+                        ) : userInfo ? ( // Если профиль загружен
                             <>
                                 <div onClick={() => navigate('/profile')} className="w-9 h-9 rounded-full bg-pink-500 flex items-center justify-center font-bold text-white text-lg cursor-pointer">
-                                    {profile.username.charAt(0).toUpperCase()} {/* Первая буква имени */}
+                                    {userInfo?.username.charAt(0).toUpperCase()} {/* Первая буква имени */}
                                 </div>
-                                <span className="text-sm font-semibold text-gray-900 dark:text-white">{profile.username}</span> {/* Имя пользователя */}
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white">{userInfo?.username}</span> {/* Имя пользователя */}
                             </>
                         ) : ( // Если профиль не загружен (например, ошибка или не вошел)
                             <>

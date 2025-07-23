@@ -38,7 +38,7 @@ class DocumentProcessor:
         self.embeddings_store: Dict[str, EmbeddingsService] = {}
         
     async def save_document(
-        self, file_path: str, filename: str, db: Session
+        self, file_path: str, filename: str, user_id: str, db: Session
     ) -> DocumentInfo:
         """Saves the document, extracts full text, and creates a DB record."""
         file_id = Path(file_path).stem
@@ -61,6 +61,7 @@ class DocumentProcessor:
         db_doc = DocumentDB(
             file_id=file_id,
             filename=filename,
+            user_id=user_id,
             file_type=file_type,
             file_path=file_path,
             full_text_path=str(full_text_path) if full_text_path else None,

@@ -1,18 +1,28 @@
 import { authFetch } from './auth';
+import { trackChatMessage, trackError } from './analytics';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export const createBookChat = async (fileId: string, name?: string) => {
-  const res = await authFetch(`${API_BASE}/api/book-chats`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ file_id: fileId, name }),
-  });
-  if (!res.ok) {
-    throw new Error('Could not create a new chat for the document.');
+  try {
+    const res = await authFetch(`${API_BASE}/api/book-chats`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_id: fileId, name }),
+    });
+    if (!res.ok) {
+      throw new Error('Could not create a new chat for the document.');
+    }
+    const data = await res.json();
+    
+    // Track book chat creation
+    trackChatMessage('book');
+    
+    return data;
+  } catch (error) {
+    trackError('book_chat_creation_failed', error instanceof Error ? error.message : 'Unknown error');
+    throw error;
   }
-  const data = await res.json();
-  return data;
 };
 
 export const getBookChats = async () => {

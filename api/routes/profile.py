@@ -6,7 +6,7 @@ from core.models import UserInfo as UserProfileResponse # Profile остаетс
 from core.user_db import update_user_study_time # Импортируем новую функцию
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/profile", tags=["profile"])
+router = APIRouter(prefix="/api/profile", tags=["profile"])
 
 
 class StudyTimeRequest(BaseModel):
@@ -45,3 +45,4 @@ async def update_study_time_endpoint(
         total_study_time=updated_user.total_study_time,
         study_streak_days=updated_user.study_streak_days,
     ) 
+
