@@ -12,9 +12,10 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Main settings object loaded from environment variables / .env."""
 
-    # --- OpenAI / Gemini API keys ---
+    # --- OpenAI / Gemini / Groq API keys ---
     openai_api_key: str | None = None
     gemini_api_key: str | None = None
+    groq_api_key: str | None = None
 
     # --- Google Custom Search ---
     google_api_key: str | None = None

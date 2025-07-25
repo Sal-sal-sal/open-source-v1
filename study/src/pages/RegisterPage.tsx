@@ -57,7 +57,7 @@ const RegisterPage: React.FC = () => {
       console.log('Welcome new Google user!');
     }
 
-    navigate('/chat');
+    navigate('/audio');
   };
 
   const handleGoogleError = (error: string) => {

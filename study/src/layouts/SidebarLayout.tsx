@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { authFetch, clearToken } from '../utils/auth';
-import { Orbit, Search, FileEdit, CheckSquare, Book, History, ChevronLeft, MoreHorizontal, LogOut, User, FileText, PenTool } from 'lucide-react';
+import { Orbit, Search, FileEdit, CheckSquare, Book, History, ChevronLeft, MoreHorizontal, LogOut, User, FileText, PenTool, Headphones, Play, Upload } from 'lucide-react';
 import NotesModal from '../components/NotesModal';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
@@ -17,6 +17,7 @@ import {
 import { useChat } from '../contexts/ChatContext';
 import { useProfile } from '../hooks/useProfile';
 import { FaMusic, FaBookOpen } from 'react-icons/fa';
+import CreateBookChatModal from '../components/CreateBookChatModal';
 
 interface ChatSummary {
   id: string;
@@ -53,6 +54,7 @@ const SidebarLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -111,7 +113,7 @@ const SidebarLayout: React.FC = () => {
   };
 
   const requestNewChat = () => {
-    navigate("/chat");
+    navigate("/audio");
   };
 
   const handleDeleteChat = async (id: string, type: 'book' | 'history' | 'audio') => {
@@ -172,9 +174,21 @@ const SidebarLayout: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-[#1C1C1C] text-gray-800 dark:text-gray-300 font-sans">
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-35 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+      
       {/* Sidebar */}
-      <aside className={`bg-gray-50 dark:bg-[#1C1C1C] transition-all duration-300 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-0'} flex-shrink-0 flex flex-col text-gray-800 dark:text-gray-300 overflow-hidden border-r border-gray-200 dark:border-gray-700/60`}>
-        <div className="w-64 h-full flex flex-col p-2">
+      <aside className={`bg-gray-50 dark:bg-[#1C1C1C] transition-all duration-300 ease-in-out flex-shrink-0 flex flex-col text-gray-800 dark:text-gray-300 overflow-hidden border-r border-gray-200 dark:border-gray-700/60 h-screen ${
+        isSidebarOpen 
+          ? 'w-64 lg:w-64 max-sm:w-full max-sm:fixed max-sm:inset-0 max-sm:z-50' 
+          : 'w-0 lg:w-0 max-sm:w-0'
+      }`} style={{ zIndex: 40 }}>
+        <div className="w-64 lg:w-64 max-sm:w-full h-full flex flex-col p-2">
             {/* Top Section */}
             <div className="flex items-center gap-2 mb-4">
               <button onClick={requestNewChat} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
@@ -186,30 +200,36 @@ const SidebarLayout: React.FC = () => {
               </button>
             </div>
 
-            {/* Search and Main Nav */}
-            <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
-                <input 
-                  type="text" 
-                  placeholder={t('Search') + '...'} 
-                  className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={handleSearch}
-                />
-            </div>
+
 
             {/* Scrollable Area */}
             <div className="flex-1 overflow-y-auto min-h-0">
                 <div className="flex flex-col gap-2 mb-4">
-                    <Link to="/chat" className={`flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium ${location.pathname.startsWith('/chat') ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' : 'hover:bg-gray-200/50 dark:hover:bg-gray-700/50'}`}>
-                        <FileEdit className="h-5 w-5 text-aliceblue" />
-                        {t('Chat')}
-                    </Link>
+
 
                     <Link to="/audio" className={`flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium ${location.pathname.startsWith('/audio') ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-dark' : 'hover:bg-gray-200/50 dark:hover:bg-gray-200/50'}`}>
                         <FaBookOpen className="h-5 w-5 text-aliceblue" />
                         {t('Audio Books')}
+                    </Link>
+
+                    <Link to="/pdf-to-audio" className={`flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium ${location.pathname.startsWith('/pdf-to-audio') ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' : 'hover:bg-gray-200/50 dark:hover:bg-gray-700/50'}`}>
+                        <Headphones className="h-5 w-5 text-aliceblue" />
+                        PDF to Audio
+                    </Link>
+
+                    <Link to="/library" className={`flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium ${location.pathname.startsWith('/library') ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' : 'hover:bg-gray-200/50 dark:hover:bg-gray-700/50'}`}>
+                        <Book className="h-5 w-5 text-aliceblue" />
+                        Library
+                    </Link>
+
+                    <Link to="/audio-library" className={`flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium ${location.pathname.startsWith('/audio-library') ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' : 'hover:bg-gray-200/50 dark:hover:bg-gray-700/50'}`}>
+                        <Headphones className="h-5 w-5 text-aliceblue" />
+                        Audio Library
+                    </Link>
+
+                    <Link to="/video" className={`flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium ${location.pathname.startsWith('/video') ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' : 'hover:bg-gray-200/50 dark:hover:bg-gray-700/50'}`}>
+                        <Play className="h-5 w-5 text-aliceblue" />
+                        Video
                     </Link>
 
                     <Link to="/notes" className={`flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium ${location.pathname.startsWith('/notes') ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' : 'hover:bg-gray-200/50 dark:hover:bg-gray-700/50'}`}>
@@ -219,6 +239,13 @@ const SidebarLayout: React.FC = () => {
                         </div>
                         {t('Notes')}
                     </Link>
+                    <button
+                        onClick={() => setIsUploadModalOpen(true)}
+                        className="flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all"
+                    >
+                        <Upload className="h-5 w-5 text-purple-100" />
+                        Загрузить книгу
+                    </button>
                 </div>
 
                 {/* Audio Chats Section */}
@@ -274,29 +301,7 @@ const SidebarLayout: React.FC = () => {
                 </div>
 
                 {/* History Section */}
-                <div className="mt-4 flex items-center gap-3 px-3 py-2 text-xs font-semibold text-gray-400 dark:text-gray-500">
-                    <History className="h-4 w-4 text-aliceblue" />
-                    <span>{t('History')}</span>
-                </div>
-                <div className="flex flex-col gap-1 px-3 mt-2">
-                    {currentHistoryChats.length > 0 ? (
-                        currentHistoryChats.map((c) => (
-                            <button
-                                key={c.id}
-                                onClick={() => openNormalChat(c.id)}
-                                className={`group w-full flex items-center justify-between text-left py-1 px-3 rounded-full text-sm truncate ${chatId === c.id ? 'text-cyan-600 dark:text-cyan-400 bg-gray-200 dark:bg-gray-700' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
-                                title={c.name}
-                            >
-                                <span className="flex-1 truncate">{c.name}</span>
-                                <span onClick={(e) => {e.stopPropagation(); handleDeleteChat(c.id, 'history')}} className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600">
-                                    <MoreHorizontal className="w-4 h-4" />
-                                </span>
-                            </button>
-                        ))
-                    ) : (
-                        <p className="text-center text-gray-400 dark:text-gray-500 text-sm py-4">No chats yet</p>
-                    )}
-                </div>
+
             </div>
 
             {/* Footer/Profile Section */}
@@ -326,7 +331,7 @@ const SidebarLayout: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-1">
                         <LanguageSwitcher />
-                        <ThemeToggle />
+                        
                         <button onClick={handleLogout} className="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-600/50" title={t('Logout')}>
                             <LogOut className="h-5 w-5" />
                         </button>
@@ -337,16 +342,23 @@ const SidebarLayout: React.FC = () => {
       </aside>
 
       {/* Main Content (Outlet for child routes) */}
-      <main className="flex-1 flex flex-col relative min-w-0">
-        <div className="p-2 absolute top-0 left-0 z-10">
+      <main className="flex-1 flex flex-col relative min-w-0 overflow-hidden">
+        <div className="p-2 absolute top-0 left-0 z-30">
           {!isSidebarOpen && (
             <button onClick={() => setIsSidebarOpen(true)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" aria-label="Open sidebar">
                 <svg className="w-6 h-6 text-aliceblue" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
             </button>
           )}
         </div>
-        <Outlet />
+        <div className="flex-1 overflow-y-auto">
+          <Outlet />
+        </div>
       </main>
+      <CreateBookChatModal
+  isOpen={isUploadModalOpen}
+  onClose={() => setIsUploadModalOpen(false)}
+  onBookChatCreated={(bookChatId) => navigate(`/book-chat/${bookChatId}`)}
+/>
     </div>
   );
 };

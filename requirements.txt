@@ -35,6 +35,7 @@ filelock==3.18.0
 fonttools==4.58.4
 frozenlist==1.7.0
 fsspec==2025.5.1
+aiofiles==24.1.0
 ghp-import==2.1.0
 google==3.0.0
 google-ai-generativelanguage==0.6.15
@@ -90,14 +91,15 @@ mkdocs-get-deps==0.2.0
 mkdocs-material==9.6.15
 mkdocs-material-extensions==1.3.1
 more-itertools==10.7.0
-moviepy==2.2.1
 mpmath==1.3.0
 multidict==6.6.3
 networkx==3.5
 nodeenv==1.9.1
 numba==0.61.2
 numpy==2.2.6
-openai==1.93.0
+google-cloud-texttospeech==2.18.0
+PyMuPDF==1.23.26
+TTS==0.22.0
 orjson==3.10.18
 packaging==24.2
 paginate==0.5.7
@@ -164,3 +166,9 @@ youtube-transcript-api==1.1.1
 zstandard==0.23.0
 redis==5.2.1
 celery==5.4.0
+pydub==0.25.1
+google-api-python-client==2.108.0
+yt-dlp==2023.12.30
+pyaudio==0.2.11
+ffmpeg-python==0.2.0
+google-cloud-storage==2.10.0

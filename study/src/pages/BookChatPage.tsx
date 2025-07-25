@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { authFetch } from '../utils/auth';
 import { PDFViewer } from '../components/PDFViewer';
@@ -8,7 +8,9 @@ import { PlusCircle } from 'lucide-react';
 import { useNotes } from '../contexts/NotesContext';
 import PageRangeModal from '../components/PageRangeModal';
 import { createBookChat } from '../utils/chat';
+import type { PDFPageData } from '../types/pdf';
 import { trackChatMessage, trackPageView, trackError } from '../utils/analytics';
+import CreateNotesButton from '../components/CreateNotesButton';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -47,6 +49,8 @@ const BookChatPage: React.FC = () => {
     const [inputValue, setInputValue] = useState('');
     const chatEndRef = useRef<HTMLDivElement>(null);
     const { addNote } = useNotes();
+    const [pdfPageData, setPdfPageData] = useState<PDFPageData | null>(null);
+    const [pageInputValue, setPageInputValue] = useState('');
 
     useEffect(() => {
         const fetchChatData = async () => {
@@ -75,9 +79,71 @@ const BookChatPage: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleNumPagesChange = (numPages: number) => {
-        setTotalPages(numPages);
+    const handlePageInputSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!pdfPageData) return;
+        const page = parseInt(pageInputValue);
+        if (page < 1 || page > pdfPageData.numPages) return;
+        
+        // Clear input value
+        setPageInputValue('');
+        
+        // Trigger page jump in PDFViewer by setting currentPageRange
+        // The PDFViewer expects start: -1 and end: pageNumber as a signal
+        setPdfPageData({ 
+            ...pdfPageData, 
+            currentPage: page, 
+            isJumping: true,
+            startPage: -1, // Signal to PDFViewer to jump
+            endPage: page  // Target page number
+        });
     };
+
+    const handleNumPagesChange = useCallback((numPages: number) => {
+        setTotalPages(numPages);
+        // Initialize pdfPageData when we get the number of pages
+        setPdfPageData({
+            currentPage: 1,
+            numPages: numPages,
+            startPage: 1,
+            endPage: numPages,
+            isJumping: false,
+            isLoading: false
+        });
+    }, []);
+
+    const handleJumpToPage = useCallback((page: number) => {
+        if (pdfPageData && pdfPageData.currentPage !== page) {
+            setPdfPageData({ ...pdfPageData, currentPage: page });
+        }
+    }, [pdfPageData]);
+
+    const handleJumpingChange = useCallback((jumping: boolean) => {
+        if (pdfPageData && pdfPageData.isJumping !== jumping) {
+            // If jumping is complete (false), reset the jump signal
+            if (!jumping && pdfPageData.startPage === -1) {
+                // Reset the jump signal by setting startPage to the actual current page
+                // This prevents the PDFViewer from continuously triggering jumps
+                setPdfPageData({ 
+                    ...pdfPageData, 
+                    isJumping: jumping,
+                    startPage: pdfPageData.currentPage - 2, // Set to a reasonable range around current page
+                    endPage: pdfPageData.currentPage + 2
+                });
+            } else {
+                setPdfPageData({ ...pdfPageData, isJumping: jumping });
+            }
+        }
+    }, [pdfPageData]);
+
+    const handlePageRangeChange = useCallback((start: number, end: number) => {
+        if (pdfPageData && (pdfPageData.startPage !== start || pdfPageData.endPage !== end)) {
+            // Only update if we're not in the middle of a jump signal
+            if (start !== -1) {
+                setPdfPageData({ ...pdfPageData, startPage: start, endPage: end });
+            }
+        }
+    }, [pdfPageData]);
 
     const handlePageRangeSubmit = async (start: number, end: number) => {
         setIsModalOpen(false);
@@ -141,6 +207,32 @@ const BookChatPage: React.FC = () => {
             <div className="flex-[5] flex flex-col border-r border-gray-300 dark:border-gray-700 h-full">
                 <div className="p-4 border-b border-gray-300 dark:border-gray-700 flex justify-between items-center">
                     <h2 className="text-lg font-semibold">Document Viewer</h2>
+                    <div className="flex-1 flex justify-center gap-4">
+                    {pdfPageData && (
+                            <form onSubmit={handlePageInputSubmit} className="flex items-center gap-2 bg-gray-900/90 text-white px-4 py-2 rounded-lg border border-cyan-500 shadow-lg text-sm">
+                                <span>Страница</span>
+                                <input
+                                    id="pdf-page-jump-input"
+                                    type="number"
+                                    value={pageInputValue}
+                                    onChange={(e) => setPageInputValue(e.target.value)}
+                                    placeholder={`${pdfPageData.startPage}-${pdfPageData.endPage}`}
+                                    min="1"
+                                    max={pdfPageData.numPages}
+                                    disabled={pdfPageData.isJumping || pdfPageData.isLoading}
+                                    className="w-20 px-2 py-1 bg-gray-800 text-white rounded border border-gray-700 focus:border-cyan-500 focus:outline-none text-center"
+                                />
+                                <span>из {pdfPageData.numPages}</span>
+                                <button
+                                    type="submit"
+                                    disabled={pdfPageData.isJumping || pageInputValue === ''}
+                                    className="ml-2 px-3 py-1 bg-cyan-500 hover:bg-cyan-600 text-black rounded transition-colors disabled:opacity-50"
+                                >
+                                    Перейти
+                                </button>
+                            </form>
+                        )}
+                        </div>
                     <button
                         onClick={handleProcessClick}
                         disabled={isProcessingDoc || !fileId}
@@ -148,17 +240,41 @@ const BookChatPage: React.FC = () => {
                     >
                         {isProcessingDoc ? 'Processing...' : 'Process'}
                     </button>
+
                 </div>
-                {fileUrl && <PDFViewer fileUrl={fileUrl} onNumPagesChange={handleNumPagesChange} />}
+                {fileUrl && (
+                  <PDFViewer 
+                    fileUrl={fileUrl} 
+                    onNumPagesChange={handleNumPagesChange}
+                    onJumpToPage={handleJumpToPage}
+                    onJumpingChange={handleJumpingChange}
+                    onPageRangeChange={handlePageRangeChange}
+                    currentPageRange={pdfPageData ? { start: pdfPageData.startPage, end: pdfPageData.endPage } : undefined}
+                  />
+                )}
             </div>
             <div className="flex-[4] flex flex-col h-full">
                 <div className="flex-1 overflow-y-auto min-h-0">
                     {messages.map((msg, index) => (
-                        <ChatMessage key={index} message={msg} onAddNote={addNote} />
+                        <ChatMessage key={index} message={msg} onAddNote={(text: string) => addNote("Book Chat Note", text)} />
                     ))}
                     <div ref={chatEndRef} />
                 </div>
                 <div className="p-4 border-t border-gray-300 dark:border-gray-700">
+                    <div className="flex items-center gap-2 mb-2">
+                        {chatId && messages.length > 0 && (
+                            <CreateNotesButton
+                                chatId={chatId}
+                                chatType="book_chat"
+                                onSuccess={() => {
+                                    console.log('Notes created successfully from book chat');
+                                }}
+                                onError={(error) => {
+                                    console.error('Failed to create notes from book chat:', error);
+                                }}
+                            />
+                        )}
+                    </div>
                     <form onSubmit={handleSendMessage} className="relative">
                         <input
                             type="text"

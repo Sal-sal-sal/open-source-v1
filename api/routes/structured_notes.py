@@ -27,6 +27,7 @@ class NoteWithChatInfo(BaseModel):
     personal_relevance: str
     importance: str
     implementation_plan: str | None
+    user_question: str | None  # For voice message notes
     created_at: datetime
     chat_name: str | None
     chat_type: str | None  # "chat" or "book_chat"
@@ -86,6 +87,7 @@ async def get_user_notes(
                 personal_relevance=note.personal_relevance,
                 importance=note.importance,
                 implementation_plan=note.implementation_plan,
+                user_question=note.user_question,
                 created_at=note.created_at,
                 chat_name=chat_name,
                 chat_type=chat_type
@@ -118,32 +120,53 @@ async def create_note_from_text(
 
 
 @router.get("/{note_id}", response_model=StructuredNote)
-async def get_note(note_id: int, session: AsyncSession = Depends(get_async_session)):
+async def get_note(note_id: int, session_cm: AsyncSession = Depends(get_async_session)):
     """
     Retrieves a single structured note by its ID.
     """
-    note = await session.get(NoteModel, note_id)
-    if not note:
-        raise HTTPException(status_code=404, detail="Note not found")
-    return StructuredNote(**note.dict())
+    async with session_cm as session:
+        note = await session.get(NoteModel, note_id)
+        if not note:
+            raise HTTPException(status_code=404, detail="Note not found")
+        return StructuredNote(**note.dict())
 
 
 @router.put("/{note_id}", response_model=StructuredNote)
 async def update_note_implementation_plan(
     note_id: int,
     request: NoteUpdateRequest,
-    session: AsyncSession = Depends(get_async_session),
+    session_cm: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user),
 ):
     """
     Updates the implementation plan of a specific note.
     """
-    note = await session.get(NoteModel, note_id)
-    if not note or note.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Note not found or not owned by user")
+    async with session_cm as session:
+        note = await session.get(NoteModel, note_id)
+        if not note or note.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Note not found or not owned by user")
+            
+        note.implementation_plan = request.implementation_plan
+        await session.commit()
+        await session.refresh(note)
         
-    note.implementation_plan = request.implementation_plan
-    await session.commit()
-    await session.refresh(note)
-    
-    return StructuredNote(**note.dict()) 
+        return StructuredNote(**note.dict())
+
+@router.delete("/{note_id}")
+async def delete_note(
+    note_id: int,
+    session_cm: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Deletes a specific note.
+    """
+    async with session_cm as session:
+        note = await session.get(NoteModel, note_id)
+        if not note or note.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Note not found or not owned by user")
+            
+        await session.delete(note)
+        await session.commit()
+        
+        return {"message": "Note deleted successfully"} 

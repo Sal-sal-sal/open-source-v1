@@ -40,7 +40,7 @@ const LoginPage: React.FC = () => {
       channel.postMessage('login');
       channel.close();
 
-      navigate('/chat');
+      navigate('/audio');
     } catch (err: any) {
       setError(err.message);
       // Track login error
@@ -64,7 +64,7 @@ const LoginPage: React.FC = () => {
       console.log('Welcome new Google user!');
     }
 
-    navigate('/chat');
+    navigate('/audio');
   };
 
   const handleGoogleError = (error: string) => {

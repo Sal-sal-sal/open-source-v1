@@ -4,6 +4,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from core.db import init_db
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 # Routers are defined in api.routes package
 from api.routes.chat import router as chat_router
 from api.routes.images import router as images_router
@@ -20,7 +25,9 @@ from api.routes.tasks import router as tasks_router
 from api.routes.profile import router as profile_router 
 from api.routes.audio import router as audio_router
 from api.routes.structured_notes import router as structured_notes_router
+from api.routes.notes import router as notes_router
 from api.routes.audio_chat import router as audio_chat_router
+from api.routes.pdf_to_audio import router as pdf_to_audio_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Initializing database...")
@@ -64,4 +71,6 @@ app.include_router(tasks_router)
 app.include_router(profile_router) # Регистрируем новый роутер
 app.include_router(audio_router)
 app.include_router(structured_notes_router)
+app.include_router(notes_router)
 app.include_router(audio_chat_router)
+app.include_router(pdf_to_audio_router)

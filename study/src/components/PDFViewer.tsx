@@ -44,7 +44,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
     if (onPageRangeChange && numPages) {
       onPageRangeChange(startPage, endPage);
     }
-  }, [startPage, endPage, numPages, onPageRangeChange]);
+  }, [startPage, endPage, numPages]); // Removed onPageRangeChange from dependencies
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     console.log(`PDF loaded with ${numPages} pages`);
@@ -288,32 +288,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
       ref={containerRef}
       className="w-full h-full overflow-y-auto bg-gray-100 dark:bg-gray-800"
     >
-      {numPages && (
-        <div style={{ transform: 'translateX(-50%) translateX(-100px)' }} className="fixed top-4 left-1/2 z-[99999] bg-gray-900/90 text-white px-4 py-2 rounded-lg border border-cyan-500 shadow-2xl text-sm">
-          <form onSubmit={handlePageInputSubmit} className="flex items-center gap-2">
-            <span>Страница</span>
-            <input
-              id="pdf-page-jump-input"
-              type="number"
-              value={pageInputValue}
-              onChange={(e) => setPageInputValue(e.target.value)}
-              placeholder={`${startPage}-${endPage}`}
-              min="1"
-              max={numPages}
-              disabled={isJumping || isLoading}
-              className="w-20 px-2 py-1 bg-gray-800 text-white rounded border border-gray-700 focus:border-cyan-500 focus:outline-none text-center"
-            />
-            <span>из {numPages}</span>
-            <button
-              type="submit"
-              disabled={isJumping || pageInputValue === ''}
-              className="ml-2 px-3 py-1 bg-cyan-500 hover:bg-cyan-600 text-black rounded transition-colors disabled:opacity-50"
-            >
-              Перейти
-            </button>
-          </form>
-        </div>
-      )}
+
       <Document
         file={fileUrl}
         onLoadSuccess={onDocumentLoadSuccess}

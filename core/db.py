@@ -80,7 +80,7 @@ class Note(SQLModel, table=True):
     __tablename__ = "structured_notes"
     id: int = Field(default=None, primary_key=True)
     user_id: str = Field(foreign_key="users.id", index=True)
-    chat_id: Optional[str] = Field(foreign_key="chat.id", index=True, nullable=True)
+    chat_id: Optional[str] = Field(index=True, nullable=True)  # Remove foreign key constraint
     
     title: str
     meaning: str = Field(sa_column=Column(Text))
@@ -88,12 +88,13 @@ class Note(SQLModel, table=True):
     personal_relevance: str = Field(sa_column=Column(Text))
     importance: str = Field(sa_column=Column(Text))
     implementation_plan: Optional[str] = Field(sa_column=Column(Text, nullable=True))
+    user_question: Optional[str] = Field(sa_column=Column(Text, nullable=True))  # For voice message notes
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     user: "User" = Relationship(back_populates="notes")
-    chat: Optional["Chat"] = Relationship(back_populates="notes")
+    # Remove chat relationship since we now support multiple chat types
 
 
 class Chat(SQLModel, table=True):
@@ -102,7 +103,6 @@ class Chat(SQLModel, table=True):
     name: str = Field(default="Новый чат")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     messages: List["Message"] = Relationship(back_populates="chat", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
-    notes: List["Note"] = Relationship(back_populates="chat", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     user: User = Relationship(back_populates="chats")
 
 class Message(SQLModel, table=True):
@@ -138,6 +138,7 @@ class AudioChat(SQLModel, table=True):
     user_id: str = Field(foreign_key="users.id", index=True)
     name: Optional[str] = None
     file_id: str = Field(foreign_key="document.file_id") # Связь с Document, где хранится аудио
+    created_at: datetime = Field(default_factory=datetime.utcnow)
     messages: List["AudioChatMessage"] = Relationship(back_populates="audio_chat", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     document: Document = Relationship(back_populates="audio_chats")
     user: User = Relationship(back_populates="audio_chats")

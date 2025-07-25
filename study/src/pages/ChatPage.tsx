@@ -12,6 +12,7 @@ import { useIdle } from '../hooks/useIdle';
 import Starfield from '../components/Starfield';
 import VideoUrlModal from '../components/VideoUrlModal';
 import AudioPage from './AudioPage';
+import CreateNotesButton from '../components/CreateNotesButton';
 
 // --- TYPE DEFINITIONS ---
 
@@ -469,6 +470,21 @@ const ChatPage: React.FC = () => {
             </div>
             <div className="p-4 pt-2">
               <div className="max-w-4xl mx-auto">
+                <div className="flex items-center gap-2 mb-2">
+                  {chatId && messages.length > 0 && (
+                    <CreateNotesButton
+                      chatId={chatId}
+                      chatType="chat"
+                      onSuccess={() => {
+                        // Можно добавить уведомление об успехе
+                        console.log('Notes created successfully');
+                      }}
+                      onError={(error) => {
+                        console.error('Failed to create notes:', error);
+                      }}
+                    />
+                  )}
+                </div>
                 <form onSubmit={handleSendMessage} className="relative flex items-end">
                   <textarea
                     value={inputValue}

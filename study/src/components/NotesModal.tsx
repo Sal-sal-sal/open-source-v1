@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { type Note, getNotes, createNote, updateNote, deleteNote } from '../utils/notes';
+import { getAllNotes, createNote, updateNote, deleteNote } from '../utils/notes';
+import type { NoteWithChatInfo } from '../types/notes';
 import { X, Edit, Trash2, Plus } from 'lucide-react';
 
 interface NotesModalProps {
@@ -9,20 +10,23 @@ interface NotesModalProps {
 }
 
 const NotesModal: React.FC<NotesModalProps> = ({ chatId, isOpen, onClose }) => {
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [notes, setNotes] = useState<NoteWithChatInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newNoteContent, setNewNoteContent] = useState('');
-  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [editingNote, setEditingNote] = useState<NoteWithChatInfo | null>(null);
   const [editingContent, setEditingContent] = useState('');
 
   const fetchNotes = useCallback(async () => {
-    if (!chatId) return;
     setIsLoading(true);
     setError(null);
     try {
-      const fetchedNotes = await getNotes(chatId);
-      setNotes(fetchedNotes);
+      const fetchedNotes = await getAllNotes();
+      // Filter notes for this specific chat (we'll need to check chat_type and chat_name)
+      const chatNotes = fetchedNotes.filter(note => 
+        note.chat_type && note.chat_name && note.chat_name.includes(chatId)
+      );
+      setNotes(chatNotes);
     } catch (err) {
       setError('Failed to load notes.');
       console.error(err);
@@ -77,9 +81,9 @@ const NotesModal: React.FC<NotesModalProps> = ({ chatId, isOpen, onClose }) => {
     }
   };
 
-  const startEditing = (note: Note) => {
+  const startEditing = (note: NoteWithChatInfo) => {
     setEditingNote(note);
-    setEditingContent(note.content);
+    setEditingContent(note.meaning); // Use meaning as the editable content
   };
 
   if (!isOpen) return null;
@@ -136,7 +140,7 @@ const NotesModal: React.FC<NotesModalProps> = ({ chatId, isOpen, onClose }) => {
             <ul className="space-y-4">
               {notes.map((note) => (
                 <li key={note.id} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg flex justify-between items-start">
-                  <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{note.content}</p>
+                  <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{note.meaning}</p>
                   <div className="flex gap-2 ml-4">
                     <button onClick={() => startEditing(note)} className="text-blue-500 hover:text-blue-700"><Edit size={18} /></button>
                     <button onClick={() => handleDeleteNote(note.id)} className="text-red-500 hover:text-red-700"><Trash2 size={18} /></button>
