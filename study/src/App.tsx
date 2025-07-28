@@ -7,6 +7,8 @@ import { ChatProvider } from './contexts/ChatContext';
 import { useIdle } from './hooks/useIdle';
 import Starfield from './components/Starfield';
 import { Toaster } from './components/Toaster';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
+import PWAUpdatePrompt from './components/PWAUpdatePrompt';
 import { trackEngagement, trackPageView } from './utils/analytics';
 
 const App: React.FC = () => {
@@ -44,6 +46,8 @@ const App: React.FC = () => {
                                 {isIdle && <Starfield />}
                             </div>
                             <AppRoutes />
+                            <PWAInstallPrompt />
+                            <PWAUpdatePrompt />
                         </div>
                     </NotesProvider>
                 </ChatProvider>

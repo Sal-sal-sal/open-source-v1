@@ -4,6 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LearnTug</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#8b5cf6">
+    <meta name="description" content="Создавайте AI-заметки из аудиокниг и голосовых сообщений">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LearnTug">
+    
+    <!-- PWA Links -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png">
+    <link rel="apple-touch-icon" href="/icon-192x192.png">
+    
     <link rel="stylesheet" href="/styles.css">
     <script async src="https://www.googletagmanager.com/gtag/js?id=%VITE_GOOGLE_MEASUREMENT_ID%"></script>
     <script>
@@ -22,6 +37,22 @@
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-%VITE_GOOGLE_MEASUREMENT_ID%"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div id="root"></div>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
+    
     <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

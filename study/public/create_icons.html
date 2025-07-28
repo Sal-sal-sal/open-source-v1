@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate PWA Icons</title>
+</head>
+<body>
+    <h2>Generating LearnTug PWA Icons...</h2>
+    <canvas id="canvas192" width="192" height="192" style="border: 1px solid #ccc; margin: 10px;"></canvas>
+    <canvas id="canvas512" width="512" height="512" style="border: 1px solid #ccc; margin: 10px;"></canvas>
+    
+    <script>
+        // Generate 192x192 icon
+        function createIcon(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#8b5cf6'); // Purple
+            gradient.addColorStop(1, '#3b82f6'); // Blue
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Add rounded corners effect
+            ctx.globalCompositeOperation = 'destination-in';
+            ctx.beginPath();
+            ctx.roundRect(0, 0, size, size, size * 0.15);
+            ctx.fill();
+            ctx.globalCompositeOperation = 'source-over';
+            
+            // Add icon content - Book + Headphones
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${size * 0.4}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Draw "LT" text
+            ctx.fillText('LT', size / 2, size / 2);
+            
+            // Add small audio wave accent
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = size * 0.02;
+            const waveY = size * 0.75;
+            const waveX = size * 0.2;
+            
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                ctx.arc(waveX + i * size * 0.15, waveY, size * 0.03, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            return canvas.toDataURL('image/png');
+        }
+        
+        // Create both icons
+        const icon192 = createIcon('canvas192', 192);
+        const icon512 = createIcon('canvas512', 512);
+        
+        // Create download links
+        function downloadIcon(dataUrl, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = dataUrl;
+            link.click();
+        }
+        
+        // Auto download after 1 second
+        setTimeout(() => {
+            downloadIcon(icon192, 'icon-192x192.png');
+            setTimeout(() => {
+                downloadIcon(icon512, 'icon-512x512.png');
+                document.body.innerHTML += '<p><strong>✅ Icons generated! Replace the old files with downloaded ones.</strong></p>';
+            }, 500);
+        }, 1000);
+        
+    </script>
+</body>
+</html> 

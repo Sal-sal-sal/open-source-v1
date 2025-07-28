@@ -10,6 +10,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     base: '/',
     server: {
+      host: '0.0.0.0', // Доступ извне
+      port: 5173,
       proxy: {
         '/api': {
           target: API_BASE_URL,

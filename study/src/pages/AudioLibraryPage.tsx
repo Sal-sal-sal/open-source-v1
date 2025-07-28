@@ -1,122 +1,92 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Headphones, Download, Play, Pause, Volume2, Clock, BookOpen, Globe, Book } from 'lucide-react';
+import { Search, Play, Pause, Download, Volume2, VolumeX, Clock, User, Calendar, Tag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface AudioBook {
-  id: number;
+  identifier: string;
   title: string;
+  creator: string[] | string;
   description: string;
-  language: string;
-  copyright_year: number;
-  num_sections: number;
-  totaltime: string;
-  totaltimesecs: number;
-  authors: Author[];
-  sections: Section[];
+  downloads?: number;
+  date?: string;
+  runtime?: string;
+  language?: string[] | string;
+  subject?: string[] | string;
+  cover_url?: string;
+  archive_url?: string;
+  audio_files?: AudioFile[];
 }
 
-interface Author {
-  id: number;
-  first_name: string;
-  last_name: string;
-}
-
-interface Section {
-  id: number;
-  section_number: number;
+interface AudioFile {
+  name: string;
   title: string;
-  playtime: string;
-  playtime_secs: number;
+  format: string;
+  size: string;
+  length: string;
   download_url: string;
-  download_size: number;
 }
 
 interface SearchResult {
   books: AudioBook[];
+  total: number;
+  offset: number;
+  limit: number;
 }
 
 const AudioLibraryPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<AudioBook[]>([]);
+  const [popularBooks, setPopularBooks] = useState<AudioBook[]>([]);
+  const [selectedBook, setSelectedBook] = useState<AudioBook | null>(null);
+  const [bookDetails, setBookDetails] = useState<AudioBook | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [proxyStatus, setProxyStatus] = useState<string>('');
-  const [selectedBook, setSelectedBook] = useState<AudioBook | null>(null);
-  const [currentSection, setCurrentSection] = useState<Section | null>(null);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [audioProgress, setAudioProgress] = useState(0);
-  const [audioDuration, setAudioDuration] = useState(0);
-  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [currentTrack, setCurrentTrack] = useState<AudioFile | null>(null);
+  const [volume, setVolume] = useState(1);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
+  // Load popular books on component mount
   useEffect(() => {
-    // Load default search results instead of popular books
-    searchAudioBooks('sal');
+    loadPopularBooks();
   }, []);
+
+  const loadPopularBooks = async () => {
+    try {
+      console.log('Loading popular books from backend...');
+      const response = await fetch('/api/librivox/popular?limit=8');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const books: AudioBook[] = await response.json();
+      console.log('Popular books loaded:', books);
+      setPopularBooks(books);
+    } catch (error) {
+      console.error('Error loading popular books:', error);
+      setSearchError('Failed to load popular books. Please try again later.');
+    }
+  };
 
   const searchAudioBooks = async (query: string) => {
     if (!query.trim()) return;
 
     setIsLoading(true);
     setSearchError(null);
-    setProxyStatus('');
     try {
       console.log('Searching for:', query);
       
-      // Try local Vite proxy first, then CORS proxies
-      const proxyOptions = [
-        { type: 'local', url: `/librivox-api/feed/audiobooks/?q=${encodeURIComponent(query)}&format=json&limit=20` },
-        { type: 'cors', url: 'https://api.allorigins.win/raw?url=' },
-        { type: 'cors', url: 'https://thingproxy.freeboard.io/fetch/' },
-        { type: 'cors', url: 'https://corsproxy.io/?' },
-        { type: 'cors', url: 'https://api.codetabs.com/v1/proxy?quest=' }
-      ];
+      const searchParams = new URLSearchParams({ q: query, limit: '20' });
+      const response = await fetch(`/api/librivox/search?${searchParams}`);
       
-      let response;
-      let responseText = '';
-      let proxyIndex = 0;
-      
-      for (const proxy of proxyOptions) {
-        try {
-          setProxyStatus(`Using ${proxy.type} proxy ${proxyIndex + 1}`);
-          let requestUrl;
-          
-          if (proxy.type === 'local') {
-            requestUrl = proxy.url;
-            console.log(`Trying local proxy URL:`, requestUrl);
-          } else {
-            const libriVoxUrl = `https://librivox.org/api/feed/audiobooks/?q=${encodeURIComponent(query)}&format=json&limit=20`;
-            requestUrl = proxy.url + encodeURIComponent(libriVoxUrl);
-            console.log(`Trying CORS proxy ${proxyIndex} URL:`, requestUrl);
-          }
-          
-          response = await fetch(requestUrl, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
-              'Cache-Control': 'no-cache'
-            }
-          });
-          console.log(`${proxy.type} proxy response status:`, response.status);
-          
-          if (response.ok) {
-            responseText = await response.text();
-            console.log(`${proxy.type} proxy response text (first 200 chars):`, responseText.substring(0, 200));
-            break; // Success, exit the loop
-          }
-        } catch (error) {
-          console.log(`${proxy.type} proxy failed:`, error);
-        }
-        proxyIndex++;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      if (!response || !response.ok) {
-        throw new Error(`All proxies failed. Last status: ${response?.status}`);
-      }
-      
-      console.log('Full search response text length:', responseText.length);
-      const data: SearchResult = JSON.parse(responseText);
-      console.log('Search results data:', data);
+      const data: SearchResult = await response.json();
+      console.log('Search results:', data);
       setSearchResults(data.books || []);
     } catch (error) {
       console.error('Error searching audiobooks:', error);
@@ -132,79 +102,169 @@ const AudioLibraryPage: React.FC = () => {
     searchAudioBooks(searchQuery);
   };
 
-  const getAuthorDisplay = (authors: Author[]) => {
-    if (!authors || authors.length === 0) return 'Unknown Author';
-    return authors.map(author => `${author.first_name} ${author.last_name}`).join(', ');
+  const loadBookDetails = async (book: AudioBook) => {
+    try {
+      console.log('Loading book details for:', book.identifier);
+      const response = await fetch(`/api/librivox/book/${book.identifier}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const details: AudioBook = await response.json();
+      console.log('Book details loaded:', details);
+      setBookDetails(details);
+      setSelectedBook(book);
+    } catch (error) {
+      console.error('Error loading book details:', error);
+      setSearchError('Failed to load book details. Please try again later.');
+    }
   };
 
-  const formatDuration = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
-  };
-
-  const playAudio = (section: Section) => {
-    if (audioElement) {
-      audioElement.pause();
+  const playAudio = (audioFile: AudioFile) => {
+    // Stop current audio if playing
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.removeEventListener('loadedmetadata', () => {});
+      currentAudio.removeEventListener('timeupdate', () => {});
+      currentAudio.removeEventListener('ended', () => {});
     }
 
-    const newAudio = new Audio(section.download_url);
-    newAudio.addEventListener('loadedmetadata', () => {
-      setAudioDuration(newAudio.duration);
+    // Stream audio through our backend
+    const streamUrl = `/api/librivox/stream/${bookDetails?.identifier}/${audioFile.name}`;
+    const audio = new Audio(streamUrl);
+    
+    audio.addEventListener('loadedmetadata', () => {
+      setDuration(audio.duration);
     });
 
-    newAudio.addEventListener('timeupdate', () => {
-      setAudioProgress(newAudio.currentTime);
+    audio.addEventListener('timeupdate', () => {
+      setCurrentTime(audio.currentTime);
     });
 
-    newAudio.addEventListener('ended', () => {
+    audio.addEventListener('ended', () => {
       setIsPlaying(false);
-      setAudioProgress(0);
+      setCurrentTrack(null);
     });
 
-    newAudio.play();
-    setAudioElement(newAudio);
-    setCurrentSection(section);
-    setIsPlaying(true);
+    audio.volume = volume;
+    setCurrentAudio(audio);
+    setCurrentTrack(audioFile);
+    
+    audio.play().then(() => {
+      setIsPlaying(true);
+    }).catch(error => {
+      console.error('Error playing audio:', error);
+      setSearchError('Failed to play audio. Please try again.');
+    });
   };
 
-  const pauseAudio = () => {
-    if (audioElement) {
-      audioElement.pause();
-      setIsPlaying(false);
+  const togglePlayPause = () => {
+    if (currentAudio) {
+      if (isPlaying) {
+        currentAudio.pause();
+        setIsPlaying(false);
+      } else {
+        currentAudio.play().then(() => {
+          setIsPlaying(true);
+        }).catch(error => {
+          console.error('Error playing audio:', error);
+        });
+      }
     }
   };
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = parseFloat(e.target.value);
-    if (audioElement) {
-      audioElement.currentTime = time;
-      setAudioProgress(time);
+  const handleVolumeChange = (newVolume: number) => {
+    setVolume(newVolume);
+    if (currentAudio) {
+      currentAudio.volume = newVolume;
     }
   };
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const volume = parseFloat(e.target.value);
-    if (audioElement) {
-      audioElement.volume = volume;
+  const handleSeek = (newTime: number) => {
+    if (currentAudio) {
+      currentAudio.currentTime = newTime;
+      setCurrentTime(newTime);
     }
   };
 
-  const downloadAudio = (section: Section) => {
+  const downloadAudio = (audioFile: AudioFile) => {
+    const downloadUrl = `/api/librivox/download/${bookDetails?.identifier}/${audioFile.name}`;
     const link = document.createElement('a');
-    link.href = section.download_url;
-    link.download = `${section.title}.mp3`;
+    link.href = downloadUrl;
+    link.download = audioFile.name;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const formatCreator = (creator: string | string[]) => {
+    if (Array.isArray(creator)) {
+      return creator.join(', ');
+    }
+    return creator || 'Unknown';
+  };
+
+  const formatSubjects = (subjects: string | string[]) => {
+    if (Array.isArray(subjects)) {
+      return subjects.slice(0, 3).join(', ');
+    }
+    return subjects || '';
+  };
+
+  const renderBookCard = (book: AudioBook) => (
+    <div
+      key={book.identifier}
+      className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg overflow-hidden shadow-lg hover:bg-white/15 transition-all duration-300 cursor-pointer"
+      onClick={() => loadBookDetails(book)}
+    >
+      <div className="aspect-[3/4] bg-gray-700 flex items-center justify-center overflow-hidden">
+        {book.cover_url ? (
+          <img
+            src={book.cover_url}
+            alt={book.title}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        ) : (
+          <div className="text-white/60 text-center p-4">
+            <Volume2 className="h-12 w-12 mx-auto mb-2" />
+            <p className="text-sm">Audio Book</p>
+          </div>
+        )}
+      </div>
+      <div className="p-4">
+        <h3 className="text-white font-semibold text-sm mb-2 line-clamp-2">
+          {book.title}
+        </h3>
+        <p className="text-white/70 text-xs mb-2 flex items-center">
+          <User className="h-3 w-3 mr-1" />
+          {formatCreator(book.creator)}
+        </p>
+        {book.runtime && (
+          <p className="text-white/60 text-xs mb-2 flex items-center">
+            <Clock className="h-3 w-3 mr-1" />
+            {book.runtime}
+          </p>
+        )}
+        {book.downloads && (
+          <p className="text-white/60 text-xs">
+            {book.downloads.toLocaleString()} downloads
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="relative min-h-screen p-6 overflow-hidden">
-      {/* Видео фон Audio Library */}
+    <div className="relative min-h-screen p-4 flex flex-col items-center justify-center overflow-hidden">
+      {/* Видео фон */}
       <video
         autoPlay
         muted
@@ -216,226 +276,211 @@ const AudioLibraryPage: React.FC = () => {
         <source src="/resurses/audiobook.mp4" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
-      
+
       {/* Затемнение поверх видео */}
       <div className="absolute inset-0 bg-black/40 z-10"></div>
-      
+
       {/* Контент */}
-      <div className="relative z-20 max-w-7xl mx-auto">
+      <div className="relative z-20 w-full max-w-7xl mx-auto">
+        {/* Заголовок и поиск */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            <Headphones className="inline-block mr-3 text-purple-400" />
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
             Audio Library
           </h1>
-          <p className="text-lg text-white/80 mb-4">
-            Discover and listen to free audiobooks from LibriVox
+          <p className="text-white/80 text-lg mb-6">
+            Discover thousands of free audiobooks from LibriVox
           </p>
-          
-          {/* Library Button */}
-          <button
-            onClick={() => navigate('/library')}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            <Book className="h-5 w-5" />
-            Switch to Text Library
-          </button>
-        </div>
 
-        {/* Search Section */}
-        <div className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-lg shadow-lg p-6 mb-6">
-          <h2 className="text-2xl font-semibold mb-4 text-white">Search Audiobooks</h2>
-          
-          {proxyStatus && (
-            <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg">
-              <p className="text-blue-300 text-sm">
-                <span className="font-medium">Status:</span> {proxyStatus}
-              </p>
-            </div>
-          )}
-          
-          <form onSubmit={handleSearch} className="flex gap-4">
-            <div className="flex-1">
+          {/* Форма поиска */}
+          <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-6">
+            <div className="relative">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for audiobooks by title, author, or subject..."
-                className="w-full px-4 py-3 border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/10 text-white placeholder-white/60"
+                placeholder="Search by title, author, or subject..."
+                className="w-full px-6 py-4 pr-14 text-lg rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-3 text-white hover:text-blue-400 transition-colors disabled:opacity-50"
+              >
+                <Search className="h-6 w-6" />
+              </button>
             </div>
-            <button
-              type="submit"
-              disabled={isLoading || !searchQuery.trim()}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-            >
-              {isLoading ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Searching...
-                </div>
-              ) : (
-                <div className="flex items-center">
-                  <Search className="mr-2" />
-                  Search
-                </div>
-              )}
-            </button>
           </form>
+
+          {/* Статус поиска */}
+          {isLoading && (
+            <p className="text-blue-400 mb-4">Searching audiobooks...</p>
+          )}
+          {searchError && (
+            <p className="text-red-400 mb-4">{searchError}</p>
+          )}
         </div>
 
-        {/* Audio Player */}
-        {currentSection && (
-          <div className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-2xl font-semibold mb-4 text-white">Now Playing</h2>
-            
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0">
-                  <button
-                    onClick={isPlaying ? pauseAudio : () => playAudio(currentSection)}
-                    className="w-12 h-12 bg-purple-600 text-white rounded-full flex items-center justify-center hover:bg-purple-700 transition-colors"
-                  >
-                    {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
-                  </button>
-                </div>
-                
-                <div className="flex-1">
-                  <h3 className="font-semibold text-white text-lg">{currentSection.title}</h3>
-                  <p className="text-white/80 text-sm">
-                    {selectedBook?.title} • {getAuthorDisplay(selectedBook?.authors || [])}
-                  </p>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Volume2 className="text-white/60" />
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    defaultValue="1"
-                    onChange={handleVolumeChange}
-                    className="w-20"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm text-white/60">
-                  <span>{Math.floor(audioProgress / 60)}:{(audioProgress % 60).toFixed(0).padStart(2, '0')}</span>
-                  <span>{Math.floor(audioDuration / 60)}:{(audioDuration % 60).toFixed(0).padStart(2, '0')}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max={audioDuration}
-                  value={audioProgress}
-                  onChange={handleSeek}
-                  className="w-full"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Search Results */}
-        {searchError && (
-          <div className="backdrop-blur-sm bg-red-500/20 border border-red-500/30 rounded-lg shadow-lg p-6 mb-6">
-            <div className="text-center">
-              <p className="text-red-300 font-medium">{searchError}</p>
-              <p className="text-red-200 text-sm mt-2">
-                The LibriVox API might be temporarily unavailable. Please try again later.
-              </p>
-            </div>
-          </div>
-        )}
-
+        {/* Результаты поиска */}
         {searchResults.length > 0 && (
-          <div className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-2xl font-semibold mb-4 text-white">
-              {searchQuery ? `Search Results (${searchResults.length} audiobooks found)` : `Featured Audiobooks (${searchResults.length} found)`}
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {searchResults.map((book) => (
-                <div key={book.id} className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-lg p-4 hover:shadow-md hover:scale-105 hover:shadow-purple-500/50 transition-all duration-300 ease-in-out">
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-white mb-1 line-clamp-2">
-                          {book.title}
-                        </h3>
-                        <p className="text-sm text-white/80 mb-2">
-                          by {getAuthorDisplay(book.authors)}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setSelectedBook(book)}
-                        className="text-purple-400 hover:text-purple-300 text-sm"
-                      >
-                        View Chapters
-                      </button>
-                    </div>
-                    
-                    <div className="flex items-center gap-4 text-xs text-white/60">
-                      <span className="flex items-center">
-                        <Clock className="mr-1" />
-                        {formatDuration(book.totaltimesecs)}
-                      </span>
-                      <span className="flex items-center">
-                        <BookOpen className="mr-1" />
-                        {book.num_sections} chapters
-                      </span>
-                      <span className="flex items-center">
-                        <Globe className="mr-1" />
-                        {book.language}
-                      </span>
-                    </div>
-                    
-                    {book.description && (
-                      <p className="text-sm text-white/70 line-clamp-3">
-                        {book.description.replace(/<[^>]*>/g, '')}
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold text-white mb-6">Search Results</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+              {searchResults.map(renderBookCard)}
+            </div>
+          </div>
+        )}
+
+        {/* Популярные книги */}
+        {popularBooks.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold text-white mb-6">Popular Audiobooks</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+              {popularBooks.map(renderBookCard)}
+            </div>
+          </div>
+        )}
+
+        {/* Детали книги */}
+        {selectedBook && bookDetails && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                {/* Заголовок модального окна */}
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold text-white mb-2">{bookDetails.title}</h2>
+                    <p className="text-white/80 flex items-center mb-2">
+                      <User className="h-4 w-4 mr-2" />
+                      {formatCreator(bookDetails.creator)}
+                    </p>
+                    {bookDetails.date && (
+                      <p className="text-white/60 flex items-center mb-2">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        {bookDetails.date}
                       </p>
                     )}
-                    
-                    {selectedBook?.id === book.id && book.sections && (
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-semibold text-white">Chapters:</h4>
-                        <div className="max-h-40 overflow-y-auto space-y-1">
-                          {book.sections.slice(0, 5).map((section) => (
-                            <div key={section.id} className="flex items-center justify-between text-xs">
-                              <span className="text-white/80 truncate flex-1">
-                                {section.title}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => playAudio(section)}
-                                  className="p-1 text-purple-400 hover:text-purple-300"
-                                  title="Play"
-                                >
-                                  <Play className="w-3 h-3" />
-                                </button>
-                                <button
-                                  onClick={() => downloadAudio(section)}
-                                  className="p-1 text-blue-400 hover:text-blue-300"
-                                  title="Download"
-                                >
-                                  <Download className="w-3 h-3" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                          {book.sections.length > 5 && (
-                            <p className="text-xs text-white/60 text-center">
-                              +{book.sections.length - 5} more chapters
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                    {bookDetails.subject && (
+                      <p className="text-white/60 flex items-center">
+                        <Tag className="h-4 w-4 mr-2" />
+                        {formatSubjects(bookDetails.subject)}
+                      </p>
                     )}
                   </div>
+                  <button
+                    onClick={() => {
+                      setSelectedBook(null);
+                      setBookDetails(null);
+                      if (currentAudio) {
+                        currentAudio.pause();
+                        setIsPlaying(false);
+                        setCurrentTrack(null);
+                      }
+                    }}
+                    className="text-white/60 hover:text-white text-2xl"
+                  >
+                    ×
+                  </button>
                 </div>
-              ))}
+
+                {/* Описание */}
+                {bookDetails.description && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-white mb-2">Description</h3>
+                    <p className="text-white/80 text-sm line-clamp-3">{bookDetails.description}</p>
+                  </div>
+                )}
+
+                {/* Аудио плеер */}
+                {currentTrack && (
+                  <div className="bg-white/5 rounded-lg p-4 mb-6">
+                    <h3 className="text-white font-semibold mb-2">Now Playing</h3>
+                    <p className="text-white/80 text-sm mb-3">{currentTrack.title}</p>
+                    
+                    {/* Контролы плеера */}
+                    <div className="flex items-center gap-4 mb-3">
+                      <button
+                        onClick={togglePlayPause}
+                        className="p-2 bg-blue-600 hover:bg-blue-700 rounded-full text-white transition-colors"
+                      >
+                        {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                      </button>
+                      
+                      {/* Прогресс */}
+                      <div className="flex-1">
+                        <input
+                          type="range"
+                          min="0"
+                          max={duration}
+                          value={currentTime}
+                          onChange={(e) => handleSeek(Number(e.target.value))}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-white/60 mt-1">
+                          <span>{formatTime(currentTime)}</span>
+                          <span>{formatTime(duration)}</span>
+                        </div>
+                      </div>
+
+                      {/* Громкость */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleVolumeChange(volume > 0 ? 0 : 1)}
+                          className="text-white/60 hover:text-white"
+                        >
+                          {volume > 0 ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                        </button>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.1"
+                          value={volume}
+                          onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                          className="w-20"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Список аудиофайлов */}
+                {bookDetails.audio_files && bookDetails.audio_files.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-4">Audio Files</h3>
+                    <div className="space-y-2">
+                      {bookDetails.audio_files.map((audioFile, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                        >
+                          <div className="flex-1">
+                            <p className="text-white font-medium text-sm">{audioFile.title}</p>
+                            <p className="text-white/60 text-xs">
+                              {audioFile.format} • {audioFile.size} • {audioFile.length}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => playAudio(audioFile)}
+                              className="p-2 bg-green-600 hover:bg-green-700 rounded-full text-white transition-colors"
+                              title="Play"
+                            >
+                              <Play className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => downloadAudio(audioFile)}
+                              className="p-2 bg-blue-600 hover:bg-blue-700 rounded-full text-white transition-colors"
+                              title="Download"
+                            >
+                              <Download className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -7,6 +7,7 @@ interface Star {
   angle: number;
   speed: number;
   size: number;
+  trail: { x: number; y: number }[];
 }
 
 const Stars: React.FC = () => {
@@ -30,6 +31,7 @@ const Stars: React.FC = () => {
 
     // Initialize stars
     const numStars = 300;
+    const trailLength = 5; // Длина следа
     starsRef.current = [];
     for (let i = 0; i < numStars; i++) {
       const layer = Math.floor(Math.random() * 3); // 0-2 for parallax
@@ -46,6 +48,7 @@ const Stars: React.FC = () => {
         angle: initialAngle,
         speed,
         size: 1 + Math.random() * 1.5,
+        trail: []
       });
     }
 
@@ -61,12 +64,26 @@ const Stars: React.FC = () => {
         const x = star.centerX + star.radius * Math.cos(star.angle);
         const y = star.centerY + star.radius * Math.sin(star.angle);
 
-        if (x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height) {
-          ctx.beginPath();
-          ctx.arc(x, y, star.size, 0, Math.PI * 2);
-          ctx.fillStyle = 'white';
-          ctx.fill();
+        // Добавляем текущую позицию в начало следа
+        star.trail.unshift({ x, y });
+        
+        // Ограничиваем длину следа
+        if (star.trail.length > trailLength) {
+          star.trail.pop();
         }
+
+        // Рисуем след
+        star.trail.forEach((point, index) => {
+          if (point.x >= 0 && point.x <= canvas.width && point.y >= 0 && point.y <= canvas.height) {
+            const alpha = (trailLength - index) / trailLength; // Убывающая прозрачность
+            const size = star.size * alpha; // Убывающий размер
+            
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
+            ctx.fill();
+          }
+        });
       });
 
       animationFrameId = requestAnimationFrame(animate);
@@ -83,7 +100,7 @@ const Stars: React.FC = () => {
   return (
     <canvas
       ref={canvasRef}
-      style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: -10 }}
+      style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, pointerEvents: 'none' }}
     />
   );
 };

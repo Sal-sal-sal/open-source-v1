@@ -72,10 +72,21 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+    <div 
+      className="flex items-center justify-center h-screen bg-gray-900 text-white relative"
+      style={{
+        backgroundImage: 'url(/resurses/for_log_in.gif)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      {/* Overlay для улучшения читаемости */}
+      <div className="absolute inset-0 bg-black/50"></div>
+      
       <form
         onSubmit={handleSubmit}
-        className="bg-gray-800 p-8 rounded-lg w-full max-w-sm space-y-4"
+        className="bg-gray-800/90 backdrop-blur-sm p-8 rounded-lg w-full max-w-sm space-y-4 relative z-10 border border-gray-700"
       >
         <h2 className="text-2xl font-bold text-center">Sign In</h2>
         {error && <p className="text-red-500 text-sm">{error}</p>}
@@ -85,7 +96,7 @@ const LoginPage: React.FC = () => {
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          className="w-full p-2 rounded bg-gray-700 focus:outline-none"
+          className="w-full p-2 rounded bg-gray-700/90 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
           required
         />
         <input
@@ -93,10 +104,10 @@ const LoginPage: React.FC = () => {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-2 rounded bg-gray-700 focus:outline-none"
+          className="w-full p-2 rounded bg-gray-700/90 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
           required
         />
-        <button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-600 text-black py-2 rounded">
+        <button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-600 text-black py-2 rounded font-semibold transition-colors">
           Sign In
         </button>
         
@@ -105,7 +116,7 @@ const LoginPage: React.FC = () => {
             <div className="w-full border-t border-gray-600"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-gray-800 text-gray-400">Or continue with</span>
+            <span className="px-2 bg-gray-800/90 text-gray-400">Or continue with</span>
           </div>
         </div>
         
@@ -117,7 +128,7 @@ const LoginPage: React.FC = () => {
         />
         
         <p className="text-center text-sm text-gray-400">
-          No account? <a href="/register" className="text-cyan-400">Sign Up</a>
+          No account? <a href="/register" className="text-cyan-400 hover:text-cyan-300 transition-colors">Sign Up</a>
         </p>
       </form>
     </div>
