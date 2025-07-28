@@ -5,11 +5,24 @@ import { FaPlay, FaPause, FaRedo, FaUndo } from 'react-icons/fa';
 import { authFetch } from '../utils/auth'; // We will use this to add the token
 import CreateNotesButton from '../components/CreateNotesButton';
 import VoiceRecorder from '../components/VoiceRecorder';
+import NotesCreatedModal from '../components/NotesCreatedModal';
 import { getGradient } from '../utils/gradients';
 
 interface AudioChatDetails {
   name: string;
   file_id: string;
+}
+
+interface CreatedNote {
+  id?: number;
+  title: string;
+  meaning: string;
+  association: string;
+  personal_relevance: string;
+  importance: string;
+  implementation_plan: string;
+  user_question?: string;
+  created_at?: string;
 }
 
 const AudioChatView: React.FC = () => {
@@ -24,6 +37,8 @@ const AudioChatView: React.FC = () => {
   const [duration, setDuration] = useState(0);
   const [voiceMessageError, setVoiceMessageError] = useState<string | null>(null);
   const [voiceMessageSuccess, setVoiceMessageSuccess] = useState<string | null>(null);
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [createdNote, setCreatedNote] = useState<CreatedNote | null>(null);
   const timelineRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -154,6 +169,12 @@ const AudioChatView: React.FC = () => {
             setVoiceMessageSuccess(`✅ Voice message processed and note created! Transcript: "${transcript}"`);
             console.log('Note created successfully:', noteResult);
             
+            // Show created note in modal
+            if (noteResult.note) {
+              setCreatedNote(noteResult.note);
+              setShowNotesModal(true);
+            }
+            
             // Also try to create a combined note with the audiobook transcript if available
             if (chatDetails?.file_id) {
               try {
@@ -212,6 +233,21 @@ const AudioChatView: React.FC = () => {
   const handleVoiceMessageError = (error: string) => {
     setVoiceMessageError(error);
     setVoiceMessageSuccess(null);
+  };
+
+  const handleNotesModalClose = () => {
+    setShowNotesModal(false);
+    setCreatedNote(null);
+  };
+
+  const handleNoteUpdate = async (updatedNote: CreatedNote) => {
+    try {
+      // Update note via API if needed
+      console.log('Note updated:', updatedNote);
+      setCreatedNote(updatedNote);
+    } catch (error) {
+      console.error('Error updating note:', error);
+    }
   };
 
   if (loading) {
@@ -291,8 +327,10 @@ const AudioChatView: React.FC = () => {
 
   return (
     <div className="relative min-h-screen p-4 flex flex-col items-center justify-center overflow-hidden">
-      {/* Видео фон */}
-      <video
+      {/* Main content with conditional blur */}
+      <div className={`absolute inset-0 transition-all duration-300 ${showNotesModal ? 'blur-sm' : ''}`}>
+        {/* Видео фон */}
+        <video
         autoPlay
         muted
         loop
@@ -300,15 +338,16 @@ const AudioChatView: React.FC = () => {
         className="absolute inset-0 w-full h-full object-cover z-0"
         style={{ filter: 'brightness(0.3)' }}
       >
-        <source src="/resurses/audiobook.mp4" type="video/mp4" />
-        Your browser does not support the video tag.
-      </video>
-      
-      {/* Затемнение поверх видео */}
-      <div className="absolute inset-0 bg-black/40 z-10"></div>
+          <source src="/resurses/audiobook.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+        
+        {/* Затемнение поверх видео */}
+        <div className="absolute inset-0 bg-black/40 z-10"></div>
+      </div>
       
       {/* Контент */}
-      <div className="relative z-20 flex flex-col items-center justify-center w-full">
+      <div className={`relative z-20 flex flex-col items-center justify-center w-full transition-all duration-300 ${showNotesModal ? 'blur-md' : ''}`}>
         <h2 className="text-2xl font-bold mb-4 text-white">{chatDetails.name}</h2>
         
         {audioSrc && (
@@ -379,6 +418,14 @@ const AudioChatView: React.FC = () => {
           )}
         </div>  
       </div>
+      
+      {/* Notes Created Modal */}
+      <NotesCreatedModal
+        isOpen={showNotesModal}
+        onClose={handleNotesModalClose}
+        createdNote={createdNote}
+        onNoteUpdate={handleNoteUpdate}
+      />
     </div>
   );
 };
