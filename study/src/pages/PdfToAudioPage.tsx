@@ -37,6 +37,7 @@ const PdfToAudioPage: React.FC = () => {
   // Load voices on component mount
   React.useEffect(() => {
     loadVoices();
+    loadGutenbergAudio();
   }, []);
 
   const loadVoices = async () => {
@@ -46,6 +47,50 @@ const PdfToAudioPage: React.FC = () => {
       setVoices(data.voices);
     } catch (error) {
       console.error('Failed to load voices:', error);
+    }
+  };
+
+  const loadGutenbergAudio = () => {
+    // Check if there's a Gutenberg audio file in sessionStorage
+    const gutenbergAudioUrl = sessionStorage.getItem('gutenberg_audio_url');
+    const gutenbergAudioTitle = sessionStorage.getItem('gutenberg_audio_title');
+    const gutenbergAudioAuthor = sessionStorage.getItem('gutenberg_audio_author');
+    const gutenbergAudioDuration = sessionStorage.getItem('gutenberg_audio_duration');
+
+    if (gutenbergAudioUrl) {
+      // Create a conversion result object for the Gutenberg audio
+      const gutenbergResult: ConversionResult = {
+        success: true,
+        public_url: gutenbergAudioUrl,
+        voice_name: 'Gutenberg Book',
+        text_length: 0, // We don't have this info
+        audio_size_bytes: 0, // We don't have this info
+        processing_time_seconds: 0,
+        chunks_processed: 1,
+        parallel_processing: false
+      };
+
+      setConversionResult(gutenbergResult);
+
+      // Create audio element
+      const audio = new Audio(gutenbergAudioUrl);
+      audio.addEventListener('loadedmetadata', () => {
+        setAudioElement(audio);
+      });
+      audio.addEventListener('error', (e) => {
+        console.error('Error loading Gutenberg audio:', e);
+      });
+
+      // Clear sessionStorage to prevent reloading on next visit
+      sessionStorage.removeItem('gutenberg_audio_url');
+      sessionStorage.removeItem('gutenberg_audio_title');
+      sessionStorage.removeItem('gutenberg_audio_author');
+      sessionStorage.removeItem('gutenberg_audio_duration');
+
+      // Show success message
+      if (gutenbergAudioTitle) {
+        alert(`✅ Gutenberg book "${gutenbergAudioTitle}" loaded successfully!\n\nYou can now play and download the audio.`);
+      }
     }
   };
 
@@ -323,6 +368,24 @@ const PdfToAudioPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+
+                <div className="p-4 bg-gray-500/20 border border-gray-300/30 rounded-lg">
+                  <p className="text-sm text-gray-300 font-medium">Voice Used</p>
+                  <p className="text-gray-200 font-semibold">{conversionResult.voice_name}</p>
+                </div>
+
+                {/* Special display for Gutenberg books */}
+                {conversionResult.voice_name === 'Gutenberg Book' && (
+                  <div className="p-4 bg-purple-500/20 border border-purple-300/30 rounded-lg">
+                    <p className="text-sm text-purple-300 font-medium">📚 Project Gutenberg Book</p>
+                    <p className="text-purple-200 font-semibold">
+                      This audio was converted from a Project Gutenberg book
+                    </p>
+                    <p className="text-purple-200 text-sm mt-1">
+                      You can play, pause, and download the audio file below
+                    </p>
+                  </div>
+                )}
 
                 <div className="p-4 bg-gray-500/20 border border-gray-300/30 rounded-lg">
                   <p className="text-sm text-gray-300 font-medium">Voice Used</p>

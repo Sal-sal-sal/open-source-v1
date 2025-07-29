@@ -63,6 +63,21 @@ export const api = {
       throw error;
     }
   },
+
+  // Send a general chat message (for AudioPage)
+  sendGeneralMessage: async (message: string): Promise<{ answer: string }> => {
+    try {
+      const response = await apiClient.post('/api/chat/general', { message });
+      
+      // Track chat message
+      trackDocumentProcessed('general_chat_message');
+      
+      return response.data;
+    } catch (error) {
+      trackError('general_chat_message_failed', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  },
   
   // Get list of documents
   getDocuments: async (): Promise<DocumentInfo[]> => {
@@ -71,6 +86,103 @@ export const api = {
       return response.data.documents;
     } catch (error) {
       trackError('get_documents_failed', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  },
+
+  // Project Gutenberg API methods
+  searchGutenbergBooks: async (params: {
+    q?: string;
+    author?: string;
+    title?: string;
+    language?: string;
+    subject?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    books: any[];
+    count: number;
+    total: number;
+    next?: string;
+    previous?: string;
+  }> => {
+    try {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          searchParams.append(key, value.toString());
+        }
+      });
+      
+      const response = await apiClient.get(`/api/gutenberg/search?${searchParams}`);
+      return response.data;
+    } catch (error) {
+      trackError('gutenberg_search_failed', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  },
+
+  getGutenbergBook: async (bookId: number): Promise<any> => {
+    try {
+      const response = await apiClient.get(`/api/gutenberg/book/${bookId}`);
+      return response.data;
+    } catch (error) {
+      trackError('gutenberg_book_failed', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  },
+
+  getGutenbergBookText: async (bookId: number): Promise<{
+    book_id: number;
+    text: string;
+    html_text: string;
+    length: number;
+    source: string;
+  }> => {
+    try {
+      const response = await apiClient.get(`/api/gutenberg/text/${bookId}`);
+      return response.data;
+    } catch (error) {
+      trackError('gutenberg_text_failed', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  },
+
+  getPopularGutenbergBooks: async (limit: number = 10): Promise<any[]> => {
+    try {
+      const response = await apiClient.get(`/api/gutenberg/popular?limit=${limit}`);
+      return response.data;
+    } catch (error) {
+      trackError('gutenberg_popular_failed', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  },
+
+  getGutenbergCategories: async (): Promise<{ categories: string[] }> => {
+    try {
+      const response = await apiClient.get('/api/gutenberg/categories');
+      return response.data;
+    } catch (error) {
+      trackError('gutenberg_categories_failed', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  },
+
+  convertGutenbergBookToAudio: async (bookId: number): Promise<{
+    book_id: number;
+    title: string;
+    authors: string[];
+    audio_url?: string;
+    duration?: number;
+    file_size?: number;
+    text_length: number;
+    status: string;
+  }> => {
+    try {
+      const response = await apiClient.post(`/api/gutenberg/convert-to-audio/${bookId}`);
+      return response.data;
+    } catch (error) {
+      trackError('gutenberg_convert_to_audio_failed', error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   },

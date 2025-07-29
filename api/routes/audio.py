@@ -3,13 +3,17 @@ from fastapi.responses import FileResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
 import os
 import uuid
+import logging
 from pathlib import Path
 
 from core.auth_utils import get_current_user
 from core.db import get_async_session, User, Document
 from assistance.audio_live.transcription_service import transcribe_audio, transcription_service
 from assistance.audio_live.distil_whisper import transcribe_audiobook, distil_whisper_transcriber
-from core.gcs_storage import upload_transcript_to_gcs, upload_voice_message_to_gcs
+from core.gcs_storage import upload_transcript_to_gcs, upload_voice_message_to_gcs, get_transcript_from_gcs
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/audio", tags=["audio"])
 
@@ -221,25 +225,68 @@ async def transcribe_audiobook_endpoint(
         logger.error(f"Error in audiobook transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
+@router.get("/transcript/{file_id}")
+async def get_audio_transcript(
+    file_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get transcript for a specific audio file from GCS.
+    
+    Args:
+        file_id: ID of the audio file
+        current_user: Current authenticated user
+        
+    Returns:
+        Transcript data from GCS
+    """
+    try:
+        # Get transcript from GCS
+        transcript_data = get_transcript_from_gcs(file_id, str(current_user.id))
+        
+        if not transcript_data:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Transcript not found for file_id: {file_id}. Please ensure the audio file was uploaded with auto-transcription enabled."
+            )
+        
+        return {
+            "file_id": file_id,
+            "transcript": transcript_data.get("transcript", ""),
+            "total_duration": transcript_data.get("total_duration", 0),
+            "chunk_count": transcript_data.get("chunk_count", 0),
+            "service_used": transcript_data.get("service_used", "unknown"),
+            "model": transcript_data.get("model", "unknown"),
+            "language": transcript_data.get("language", "auto"),
+            "task": transcript_data.get("task", "transcribe"),
+            "original_filename": transcript_data.get("original_filename", "")
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving transcript for file_id {file_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve transcript: {str(e)}")
+
 @router.post("/transcript/")
 async def transcript_audio(
     file: UploadFile = File(...),
     current_time: float = None,
     total_duration: float = None,
     service: str = None,
-    save_to_gcs: bool = False,
+    save_to_gcs: bool = True,  # Changed default to True for voice messages
     message_id: str = None,
     chat_id: str = None,
     current_user: User = Depends(get_current_user)
 ):
     """
-    Transcribe audio with time interval logic and optional GCS storage:
+    Transcribe audio with time interval logic and GCS storage:
     - Standard: current_time ± 2 minutes (120 seconds)
     - Short file (≤ 4 minutes): process entire file
     - Boundary cases: adjust to file limits
     - Supports both mp3 and webm files for voice messages
     - Optional service parameter: "openai", "groq", or "auto" (default)
-    - Optional GCS storage for voice messages
+    - GCS storage enabled by default for voice messages
     """
     try:
         # Check file type
@@ -260,7 +307,11 @@ async def transcript_audio(
                 start_time = max(0, current_time - 120)  # 2 minutes back, but not less than 0
                 end_time = min(total_duration, current_time + 120)  # 2 minutes forward, but not more than total duration
         
+        # Transcribe audio
         transcript_text = await transcribe_audio(file, start_time, end_time, service)
+        
+        if not transcript_text:
+            raise HTTPException(status_code=500, detail="Transcription failed - no text was generated")
         
         # Prepare response
         response = {
@@ -271,7 +322,7 @@ async def transcript_audio(
             "service_used": service or "auto"
         }
         
-        # Save to GCS if requested
+        # Save to GCS if requested (default for voice messages)
         if save_to_gcs and transcript_text:
             try:
                 # Generate message_id if not provided
@@ -292,18 +343,24 @@ async def transcript_audio(
                     "gcs_url": gcs_url
                 }
                 
-                print(f"Voice message saved to GCS: {gcs_url}")
+                logger.info(f"Voice message saved to GCS: {gcs_url}")
                 
             except Exception as e:
-                print(f"Failed to save voice message to GCS: {str(e)}")
+                logger.error(f"Failed to save voice message to GCS: {str(e)}")
                 response["gcs_storage"] = {
                     "status": "failed",
                     "error": str(e)
                 }
+                # Don't fail the entire request if GCS save fails
+                # The transcript is still returned
         
         return response
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error in audio transcription: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
 @router.get("/")
 async def list_audio_files():

@@ -221,12 +221,6 @@ const SidebarLayout: React.FC = () => {
                         <Book className="h-5 w-5 text-aliceblue" />
                         Library
                     </Link>
-
-                    <Link to="/audio-library" className={`flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium ${location.pathname.startsWith('/audio-library') ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' : 'hover:bg-gray-200/50 dark:hover:bg-gray-700/50'}`}>
-                        <Headphones className="h-5 w-5 text-aliceblue" />
-                        Audio Library
-                    </Link>
-
                     <Link to="/video" className={`flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium ${location.pathname.startsWith('/video') ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white' : 'hover:bg-gray-200/50 dark:hover:bg-gray-700/50'}`}>
                         <Play className="h-5 w-5 text-aliceblue" />
                         Video
@@ -237,14 +231,14 @@ const SidebarLayout: React.FC = () => {
                             <FileText className="h-5 w-5 text-aliceblue" />
                             <PenTool className="h-3 w-3 text-aliceblue absolute -top-1 -right-1" />
                         </div>
-                        {t('Notes')}
+                        Notes
                     </Link>
                     <button
                         onClick={() => setIsUploadModalOpen(true)}
                         className="flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all"
                     >
                         <Upload className="h-5 w-5 text-purple-100" />
-                        Загрузить книгу
+                        Load book
                     </button>
                 </div>
 

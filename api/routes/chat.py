@@ -48,6 +48,15 @@ class GenerateChatTitleRequest(BaseModel):
     user_first_message: str
 
 
+# General chat request (for AudioPage)
+class GeneralChatRequest(BaseModel):
+    message: str
+
+
+class GeneralChatResponse(BaseModel):
+    answer: str
+
+
 async def stream_and_save_response(
     session: AsyncSession,
     chat_id: str,
@@ -69,6 +78,39 @@ async def stream_and_save_response(
     
     # Save the full message after streaming is complete
     await add_message(session, chat_id, user_id, "assistant", full_response)
+
+
+@router.post("/chat/general", response_model=GeneralChatResponse, tags=["chat"])
+async def general_chat(
+    body: GeneralChatRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """General chat endpoint for AudioPage without file context."""
+    async with get_async_session() as session:
+        # Create a temporary chat for this conversation
+        chat_id = await create_chat(session, current_user.id)
+        
+        # Add user message
+        await add_message(session, chat_id, current_user.id, "user", body.message)
+        
+        # Get response from AI
+        history = await get_history(session, chat_id, current_user.id)
+        
+        # Generate response
+        full_response = ""
+        async for chunk in response_to_user(
+            session=session,
+            chat_id=chat_id,
+            user_id=current_user.id,
+            history=history,
+            user_message=body.message,
+        ):
+            full_response += chunk
+        
+        # Save assistant response
+        await add_message(session, chat_id, current_user.id, "assistant", full_response)
+        
+        return GeneralChatResponse(answer=full_response)
 
 
 @router.post("/chat/{chat_id}/message", tags=["chat"])

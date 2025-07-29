@@ -1,53 +1,140 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Book, Download, Headphones, Star, Clock, User, Loader2 } from 'lucide-react';
+import { Search, Book, Download, Headphones, Star, Clock, User, Loader2, Globe, FileText, Eye } from 'lucide-react';
 import { authFetch } from '../utils/auth';
 import { getGradient } from '../utils/gradients';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
+import { api } from '../api/client';
 
-interface Book {
-  key: string;
+interface GutenbergBook {
+  id: number;
   title: string;
-  author_name?: string[];
-  cover_i?: number;
-  first_publish_year?: number;
-  number_of_pages_median?: number;
-  ratings_average?: number;
-  ratings_count?: number;
-  subject?: string[];
-  language?: string[];
-  ebook_access?: string;
-  public_scan_b?: boolean;
+  authors: string[];
+  languages: string[];
+  subjects: string[];
+  download_count: number;
+  formats: Record<string, string>;
+  bookshelves: string[];
+  media_type: string;
+  cover_url?: string;
+  text_url?: string;
+  html_url?: string;
+  epub_url?: string;
+  kindle_url?: string;
 }
 
 interface SearchResult {
-  numFound: number;
-  start: number;
-  docs: Book[];
+  books: GutenbergBook[];
+  count: number;
+  total: number;
+  next?: string;
+  previous?: string;
 }
 
 const LibraryPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Book[]>([]);
+  const [searchResults, setSearchResults] = useState<GutenbergBook[]>([]);
+  const [popularBooks, setPopularBooks] = useState<GutenbergBook[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
-  const [isConverting, setIsConverting] = useState(false);
+  const [selectedBook, setSelectedBook] = useState<GutenbergBook | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isConvertingToAudio, setIsConvertingToAudio] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
 
+  // Load popular books on component mount
+  useEffect(() => {
+    loadPopularBooks();
+  }, []);
+
+  const loadPopularBooks = async () => {
+    try {
+      const books = await api.getPopularGutenbergBooks(8);
+      setPopularBooks(books);
+    } catch (error) {
+      console.error('Error loading popular books:', error);
+      setSearchError('Failed to load popular books. Please try again later.');
+    }
+  };
 
   const searchBooks = async (query: string) => {
     if (!query.trim()) return;
 
     setIsLoading(true);
+    setSearchError(null);
     try {
-      // Open Library Search API
-      const response = await fetch(
-        `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=20&fields=key,title,author_name,cover_i,first_publish_year,number_of_pages_median,ratings_average,ratings_count,subject,language,ebook_access,public_scan_b`
-      );
-      const data: SearchResult = await response.json();
-      setSearchResults(data.docs);
+      const result = await api.searchGutenbergBooks({
+        q: query,
+        limit: 20
+      });
+      setSearchResults(result.books);
     } catch (error) {
       console.error('Error searching books:', error);
+      setSearchError('Failed to search books. Please try again later.');
+      setSearchResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const searchByCategory = async (category: string) => {
+    setIsLoading(true);
+    setSearchError(null);
+    setSelectedCategory(category);
+    
+    try {
+      // Map frontend categories to more specific search terms
+      const categoryMappings: Record<string, string> = {
+        'Fiction': 'fiction',
+        'Non-Fiction': 'non-fiction',
+        'Poetry': 'poetry',
+        'Drama': 'drama',
+        'History': 'history',
+        'Philosophy': 'philosophy',
+        'Science': 'science',
+        'Religion': 'religion',
+        'Biography': 'biography',
+        'Travel': 'travel',
+        'Adventure': 'adventure',
+        'Romance': 'romance',
+        'Mystery': 'mystery',
+        'Fantasy': 'fantasy',
+        'Children\'s Literature': 'children'
+      };
+
+      const searchTerm = categoryMappings[category] || category.toLowerCase();
+      
+      console.log(`Searching for category: ${category} with term: ${searchTerm}`);
+      
+      const result = await api.searchGutenbergBooks({
+        subject: searchTerm,
+        limit: 30
+      });
+      
+      console.log(`Found ${result.books.length} books for category: ${category}`);
+      
+      if (result.books.length === 0) {
+        // Try alternative search if no results
+        const alternativeResult = await api.searchGutenbergBooks({
+          q: searchTerm,
+          limit: 20
+        });
+        
+        if (alternativeResult.books.length > 0) {
+          setSearchResults(alternativeResult.books);
+          console.log(`Found ${alternativeResult.books.length} books using alternative search`);
+        } else {
+          setSearchResults([]);
+          setSearchError(`No books found for category "${category}". Try searching for a different category or use the search bar above.`);
+        }
+      } else {
+        setSearchResults(result.books);
+      }
+    } catch (error) {
+      console.error('Error searching by category:', error);
+      setSearchError(`Failed to search for category "${category}". Please try again later or use the search bar above.`);
+      setSearchResults([]);
     } finally {
       setIsLoading(false);
     }
@@ -58,44 +145,108 @@ const LibraryPage: React.FC = () => {
     searchBooks(searchQuery);
   };
 
-  const getCoverUrl = (coverId: number) => {
-    return `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
+  const getAuthorDisplay = (authors: string[]) => {
+    if (!authors || authors.length === 0) return "Unknown Author";
+    return authors.join(", ");
   };
 
-  const getAuthorDisplay = (authors: string[] | undefined) => {
-    if (!authors || authors.length === 0) return 'Unknown Author';
-    return authors.join(', ');
+  const cleanHtmlContent = (htmlContent: string) => {
+    // Simple HTML cleaning for display
+    return htmlContent
+      .replace(/<[^>]*>/g, '') // Remove HTML tags
+      .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+      .replace(/&amp;/g, '&') // Replace &amp; with &
+      .replace(/&lt;/g, '<') // Replace &lt; with <
+      .replace(/&gt;/g, '>') // Replace &gt; with >
+      .replace(/&quot;/g, '"') // Replace &quot; with "
+      .replace(/&#39;/g, "'") // Replace &#39; with '
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim();
   };
 
-  const downloadBook = async (book: Book) => {
-    setIsConverting(true);
+  const processHtmlForPdf = (htmlContent: string) => {
+    // Enhanced HTML processing for PDF with better formatting
+    let processedContent = htmlContent;
+    
+    // Replace HTML entities
+    const entities = {
+      '&nbsp;': ' ',
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#39;': "'",
+      '&apos;': "'",
+      '&mdash;': '—',
+      '&ndash;': '–',
+      '&hellip;': '...',
+      '&ldquo;': '"',
+      '&rdquo;': '"',
+      '&lsquo;': "'",
+      '&rsquo;': "'"
+    };
+    
+    Object.entries(entities).forEach(([entity, replacement]) => {
+      processedContent = processedContent.replace(new RegExp(entity, 'g'), replacement);
+    });
+    
+    // Remove script and style tags completely
+    processedContent = processedContent.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+    processedContent = processedContent.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+    
+    // Replace HTML tags with appropriate formatting
+    processedContent = processedContent.replace(/<br\s*\/?>/gi, '\n');
+    processedContent = processedContent.replace(/<p[^>]*>/gi, '\n\n');
+    processedContent = processedContent.replace(/<\/p>/gi, '\n');
+    processedContent = processedContent.replace(/<h[1-6][^>]*>/gi, '\n\n');
+    processedContent = processedContent.replace(/<\/h[1-6]>/gi, '\n');
+    processedContent = processedContent.replace(/<div[^>]*>/gi, '\n');
+    processedContent = processedContent.replace(/<\/div>/gi, '\n');
+    processedContent = processedContent.replace(/<li[^>]*>/gi, '\n• ');
+    processedContent = processedContent.replace(/<\/li>/gi, '\n');
+    processedContent = processedContent.replace(/<ul[^>]*>/gi, '\n');
+    processedContent = processedContent.replace(/<\/ul>/gi, '\n');
+    processedContent = processedContent.replace(/<ol[^>]*>/gi, '\n');
+    processedContent = processedContent.replace(/<\/ol>/gi, '\n');
+    processedContent = processedContent.replace(/<blockquote[^>]*>/gi, '\n\n"');
+    processedContent = processedContent.replace(/<\/blockquote>/gi, '"\n\n');
+    
+    // Remove all remaining HTML tags
+    processedContent = processedContent.replace(/<[^>]*>/g, '');
+    
+    // Clean up whitespace
+    processedContent = processedContent.replace(/\n\s*\n/g, '\n\n'); // Remove empty lines
+    processedContent = processedContent.replace(/\s+/g, ' '); // Replace multiple spaces
+    processedContent = processedContent.replace(/\n\s+/g, '\n'); // Remove leading spaces after newlines
+    processedContent = processedContent.replace(/\s+\n/g, '\n'); // Remove trailing spaces before newlines
+    
+    return processedContent.trim();
+  };
+
+  const getLanguageDisplay = (languages: string[]) => {
+    if (!languages || languages.length === 0) return 'Unknown';
+    return languages.join(', ');
+  };
+
+  const getSubjectsDisplay = (subjects: string[]) => {
+    if (!subjects || subjects.length === 0) return 'General';
+    return subjects.slice(0, 3).join(', ');
+  };
+
+  const downloadBook = async (book: GutenbergBook) => {
+    setIsDownloading(true);
     setSelectedBook(book);
 
     try {
-      // Get book details from Open Library
-      const bookResponse = await fetch(`https://openlibrary.org${book.key}.json`);
-      const bookData = await bookResponse.json();
-
-      // Try to get text content
-      let textContent = '';
+      // Get the full text content from Project Gutenberg
+      const textResult = await api.getGutenbergBookText(book.id);
       
-      if (bookData.description) {
-        textContent = typeof bookData.description === 'string' 
-          ? bookData.description 
-          : bookData.description.value || '';
+      if (!textResult.text || textResult.text.length < 1000) {
+        throw new Error('Book text is too short or unavailable. Please try another book.');
       }
 
-      if (bookData.excerpts && bookData.excerpts.length > 0) {
-        textContent += '\n\n' + bookData.excerpts.map((excerpt: any) => excerpt.text).join('\n\n');
-      }
-
-      if (bookData.first_sentence?.value) {
-        textContent += '\n\n' + bookData.first_sentence.value;
-      }
-
-      if (!textContent) {
-        textContent = `${book.title} by ${getAuthorDisplay(book.author_name)}. ${bookData.first_sentence?.value || 'This book is available in the Open Library collection.'}`;
-      }
+      // Process HTML content for better PDF formatting
+      const processedText = processHtmlForPdf(textResult.text);
 
       // Create a new PDF document
       const pdf = new jsPDF();
@@ -112,17 +263,32 @@ const LibraryPage: React.FC = () => {
       // Add author
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'normal');
-      const authorText = `by ${getAuthorDisplay(book.author_name)}`;
+      const authorText = `by ${getAuthorDisplay(book.authors)}`;
       pdf.text(authorText, 20, 30);
+      
+      // Add metadata
+      pdf.setFontSize(10);
+      const languageText = `Language: ${getLanguageDisplay(book.languages)}`;
+      pdf.text(languageText, 20, 40);
+      
+      const subjectsText = `Subjects: ${getSubjectsDisplay(book.subjects)}`;
+      pdf.text(subjectsText, 20, 50);
+      
+      const downloadText = `Downloads: ${book.download_count.toLocaleString()}`;
+      pdf.text(downloadText, 20, 60);
+      
+      // Add separator line
+      pdf.setLineWidth(0.5);
+      pdf.line(20, 70, 190, 70);
       
       // Add content with proper line wrapping
       pdf.setFontSize(10);
       const maxWidth = 170; // Maximum width for text
       const lineHeight = 6;
-      let yPosition = 45;
+      let yPosition = 80;
       
-      // Split text into lines that fit within the page width
-      const lines = pdf.splitTextToSize(textContent, maxWidth);
+      // Split processed text into lines that fit within the page width
+      const lines = pdf.splitTextToSize(processedText, maxWidth);
       
       for (let i = 0; i < lines.length; i++) {
         // Check if we need a new page
@@ -130,45 +296,69 @@ const LibraryPage: React.FC = () => {
           pdf.addPage();
           yPosition = 20;
         }
+        
         pdf.text(lines[i], 20, yPosition);
         yPosition += lineHeight;
       }
-
-      // Create download link
-      const pdfBlob = pdf.output('blob');
-      const fileName = `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-      const url = URL.createObjectURL(pdfBlob);
       
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Save the PDF
+      const filename = `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}_by_${getAuthorDisplay(book.authors).replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+      pdf.save(filename);
       
-      // Clean up
-      URL.revokeObjectURL(url);
-
+      // Show success message
+      alert(`✅ Book "${book.title}" downloaded successfully!\n\nFile: ${filename}\nText Length: ${processedText.length.toLocaleString()} characters\nSource: Project Gutenberg\n\nHTML formatting has been applied for better readability!`);
+      
     } catch (error) {
       console.error('Error downloading book:', error);
-      console.error('Error details:', {
-        book: book.title,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      alert(`Failed to download book "${book.title}". Please try again.`);
+      alert(`❌ Failed to download book: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try another book or check your internet connection.`);
     } finally {
-      setIsConverting(false);
+      setIsDownloading(false);
+      setSelectedBook(null);
     }
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const convertBookToAudio = async (book: GutenbergBook) => {
+    setIsConvertingToAudio(true);
+    setSelectedBook(book);
+
+    try {
+      // Convert book to audio
+      const audioResult = await api.convertGutenbergBookToAudio(book.id);
+      
+      if (audioResult.status === 'success' && audioResult.audio_url) {
+        // Redirect to PDF to Audio page with the audio file
+        const audioFileName = `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}_audio.mp3`;
+        
+        // Store the audio URL in sessionStorage for the PDF to Audio page
+        sessionStorage.setItem('gutenberg_audio_url', audioResult.audio_url);
+        sessionStorage.setItem('gutenberg_audio_title', book.title);
+        sessionStorage.setItem('gutenberg_audio_author', getAuthorDisplay(book.authors));
+        sessionStorage.setItem('gutenberg_audio_duration', audioResult.duration?.toString() || '0');
+        
+        // Show success message and redirect
+        alert(`✅ Book "${book.title}" converted to audio successfully!\n\nRedirecting to audio player...`);
+        
+        // Navigate to PDF to Audio page
+        navigate('/pdf-to-audio');
+        
+      } else {
+        throw new Error('Conversion failed or no audio URL received');
+      }
+      
+    } catch (error) {
+      console.error('Error converting book to audio:', error);
+      alert(`❌ Failed to convert book to audio: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again later.`);
+    } finally {
+      setIsConvertingToAudio(false);
+      setSelectedBook(null);
+    }
   };
+
+  const categories = [
+    'Fiction', 'Non-Fiction', 'Poetry', 'Drama', 'History', 
+    'Philosophy', 'Science', 'Religion', 'Biography', 'Travel',
+    'Adventure', 'Romance', 'Mystery', 'Fantasy', 'Children\'s Literature'
+  ];
 
   return (
     <div className="relative min-h-screen p-6 overflow-hidden">
@@ -193,119 +383,162 @@ const LibraryPage: React.FC = () => {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-4">
             <Book className="inline-block mr-3 text-purple-400" />
-            LearnTug - Платформа для Обучения
+            Project Gutenberg Library
           </h1>
           <p className="text-lg text-white/80 mb-4">
-            Загружайте аудио, создавайте заметки и изучайте материалы в один клик
+            Discover and download thousands of free public domain books
           </p>
           
           {/* Audio Library Button */}
-          <button
-            onClick={() => navigate('/audio-library')}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            <Headphones className="h-5 w-5" />
-            Аудио Библиотека
-          </button>
+
         </div>
 
         {/* Search Section */}
-        <div className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-lg shadow-lg p-6 mb-6">
-          <h2 className="text-2xl font-semibold mb-4 text-white">Поиск Книг и Материалов</h2>
-          
-          <form onSubmit={handleSearch} className="flex gap-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Поиск книг по названию, автору или теме..."
-                className="w-full px-4 py-3 border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/10 text-white placeholder-white/60"
-              />
+        <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 mb-8">
+          <form onSubmit={handleSearch} className="flex flex-col gap-4">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search books by title, author, or subject..."
+                  className="w-full px-4 py-3 bg-white/20 text-white placeholder-white/60 rounded-lg border border-white/20 focus:outline-none focus:border-purple-400"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Search className="h-5 w-5" />
+                )}
+                Search
+              </button>
             </div>
-            <button
-              type="submit"
-              disabled={isLoading || !searchQuery.trim()}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-            >
-              {isLoading ? (
-                <div className="flex items-center">
-                  <Loader2 className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
-                  Searching...
-                </div>
-              ) : (
-                <div className="flex items-center">
-                  <Search className="mr-2" />
-                  Найти
-                </div>
-              )}
-            </button>
           </form>
+
+          {/* Categories */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-white font-semibold">Popular Categories:</h3>
+              {selectedCategory && (
+                <button
+                  onClick={() => {
+                    setSelectedCategory('');
+                    setSearchResults([]);
+                    setSearchError(null);
+                  }}
+                  className="text-purple-300 hover:text-purple-200 text-sm transition-colors"
+                >
+                  Clear Filter
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => searchByCategory(category)}
+                  disabled={isLoading}
+                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    selectedCategory === category
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-white/20 text-white hover:bg-white/30 disabled:opacity-50'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+            {selectedCategory && (
+              <p className="text-white/60 text-sm mt-2">
+                Showing results for: <span className="text-purple-300 font-medium">{selectedCategory}</span>
+              </p>
+            )}
+          </div>
         </div>
+
+        {/* Error Message */}
+        {searchError && (
+          <div className="bg-red-500/20 backdrop-blur-md rounded-lg p-4 mb-6 text-red-200">
+            {searchError}
+          </div>
+        )}
 
         {/* Search Results */}
         {searchResults.length > 0 && (
-          <div className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-2xl font-semibold mb-4 text-white">
-              Результаты Поиска ({searchResults.length} книг найдено)
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-white mb-4">
+              Search Results ({searchResults.length})
             </h2>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {searchResults.map((book) => (
-                <div key={book.key} className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-lg p-4 hover:shadow-md hover:scale-105 hover:shadow-purple-500/50 transition-all duration-300 ease-in-out">
-                  <div className="flex gap-4">
-                    {book.cover_i ? (
+                <div
+                  key={book.id}
+                  className="bg-white/10 backdrop-blur-md rounded-lg p-6 hover:bg-white/20 transition-colors"
+                >
+                  <div className="flex items-start gap-4">
+                    {book.cover_url ? (
                       <img
-                        src={getCoverUrl(book.cover_i)}
+                        src={book.cover_url}
                         alt={book.title}
-                        className="w-20 h-28 object-cover rounded"
+                        className="w-16 h-20 object-cover rounded"
                       />
                     ) : (
-                      <div className="w-20 h-28 bg-gray-200 rounded flex items-center justify-center">
-                        <Book className="text-white" />
+                      <div className="w-16 h-20 bg-purple-600/30 rounded flex items-center justify-center">
+                        <Book className="h-8 w-8 text-purple-300" />
                       </div>
                     )}
-                    
                     <div className="flex-1">
-                      <h3 className="font-semibold text-white mb-1 line-clamp-2">
+                      <h3 className="text-white font-semibold text-lg mb-2 line-clamp-2">
                         {book.title}
                       </h3>
-                      <p className="text-sm text-white mb-2">
-                        by {getAuthorDisplay(book.author_name)}
+                      <p className="text-white/80 text-sm mb-2">
+                        by {getAuthorDisplay(book.authors)}
                       </p>
-                      
-                      <div className="flex items-center gap-4 text-xs text-gray-400 mb-3">
-                        {book.first_publish_year && (
-                          <span className="flex items-center">
-                            <Clock className="mr-1" />
-                            {book.first_publish_year}
-                          </span>
-                        )}
-                        {book.ratings_average && (
-                          <span className="flex items-center">
-                            <Star className="mr-1 text-yellow-500" />
-                            {book.ratings_average.toFixed(1)}
-                          </span>
-                        )}
+                      <div className="flex items-center gap-4 text-white/60 text-xs mb-3">
+                        <span className="flex items-center gap-1">
+                          <Globe className="h-3 w-3" />
+                          {getLanguageDisplay(book.languages)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Download className="h-3 w-3" />
+                          {book.download_count.toLocaleString()}
+                        </span>
                       </div>
-                      
-                      <button
-                        onClick={() => downloadBook(book)}
-                        disabled={isConverting && selectedBook?.key === book.key}
-                        className="w-full px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {isConverting && selectedBook?.key === book.key ? (
-                          <div className="flex items-center justify-center">
-                            <Loader2 className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                            Скачивание...
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center">
-                            <Download className="mr-2" />
-                            Скачать
-                          </div>
-                        )}
-                      </button>
+                      <p className="text-white/70 text-xs mb-4 line-clamp-2">
+                        {getSubjectsDisplay(book.subjects)}
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => downloadBook(book)}
+                          disabled={isDownloading && selectedBook?.id === book.id}
+                          className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm"
+                        >
+                          {isDownloading && selectedBook?.id === book.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
+                          {isDownloading && selectedBook?.id === book.id ? 'Downloading...' : 'Download'}
+                        </button>
+                        <button
+                          onClick={() => convertBookToAudio(book)}
+                          disabled={isConvertingToAudio && selectedBook?.id === book.id}
+                          className="flex-1 px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm"
+                        >
+                          {isConvertingToAudio && selectedBook?.id === book.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Headphones className="h-4 w-4" />
+                          )}
+                          {isConvertingToAudio && selectedBook?.id === book.id ? 'Converting...' : 'Audio'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -314,32 +547,100 @@ const LibraryPage: React.FC = () => {
           </div>
         )}
 
-
-
-        {/* Popular Books Section */}
-        <div className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-semibold mb-4 text-white">Популярные Книги</h2>
-          <p className="text-gray-400 mb-4">
-            Попробуйте найти популярные книги: "Великий Гэтсби", "1984", "Гордость и предубеждение", 
-            "Убить пересмешника" или "Хоббит" для начала.
-          </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { title: "The Great Gatsby", author: "F. Scott Fitzgerald", year: 1925 },
-              { title: "1984", author: "George Orwell", year: 1949 },
-              { title: "Pride and Prejudice", author: "Jane Austen", year: 1813 },
-              { title: "To Kill a Mockingbird", author: "Harper Lee", year: 1960 }
-            ].map((book, index) => (
-              <div key={index} className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-lg p-4 text-center">
-                <Book className="mx-auto h-8 w-8 text-purple-600 mb-2" />
-                <h3 className="font-semibold text-white text-sm mb-1">{book.title}</h3>
-                <p className="text-xs text-white">{book.author}</p>
-                <p className="text-xs text-white">{book.year}</p>
-              </div>
-            ))}
+        {/* No Results Message */}
+        {selectedCategory && searchResults.length === 0 && !isLoading && !searchError && (
+          <div className="text-center text-white/60 mb-8">
+            <Book className="h-16 w-16 mx-auto mb-4 opacity-50" />
+            <p className="text-lg mb-2">No books found for "{selectedCategory}"</p>
+            <p className="text-sm">Try a different category or use the search bar above to find specific books.</p>
           </div>
-        </div>
+        )}
+
+        {/* Popular Books */}
+        {popularBooks.length > 0 && searchResults.length === 0 && (
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-4">
+              Popular Books
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {popularBooks.map((book) => (
+                <div
+                  key={book.id}
+                  className="bg-white/10 backdrop-blur-md rounded-lg p-6 hover:bg-white/20 transition-colors"
+                >
+                  <div className="flex items-start gap-4">
+                    {book.cover_url ? (
+                      <img
+                        src={book.cover_url}
+                        alt={book.title}
+                        className="w-16 h-20 object-cover rounded"
+                      />
+                    ) : (
+                      <div className="w-16 h-20 bg-purple-600/30 rounded flex items-center justify-center">
+                        <Book className="h-8 w-8 text-purple-300" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <h3 className="text-white font-semibold text-lg mb-2 line-clamp-2">
+                        {book.title}
+                      </h3>
+                      <p className="text-white/80 text-sm mb-2">
+                        by {getAuthorDisplay(book.authors)}
+                      </p>
+                      <div className="flex items-center gap-4 text-white/60 text-xs mb-3">
+                        <span className="flex items-center gap-1">
+                          <Globe className="h-3 w-3" />
+                          {getLanguageDisplay(book.languages)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Download className="h-3 w-3" />
+                          {book.download_count.toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-white/70 text-xs mb-4 line-clamp-2">
+                        {getSubjectsDisplay(book.subjects)}
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => downloadBook(book)}
+                          disabled={isDownloading && selectedBook?.id === book.id}
+                          className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm"
+                        >
+                          {isDownloading && selectedBook?.id === book.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
+                          {isDownloading && selectedBook?.id === book.id ? 'Downloading...' : 'Download'}
+                        </button>
+                        <button
+                          onClick={() => convertBookToAudio(book)}
+                          disabled={isConvertingToAudio && selectedBook?.id === book.id}
+                          className="flex-1 px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm"
+                        >
+                          {isConvertingToAudio && selectedBook?.id === book.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Headphones className="h-4 w-4" />
+                          )}
+                          {isConvertingToAudio && selectedBook?.id === book.id ? 'Converting...' : 'Audio'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* No Results */}
+        {!isLoading && searchResults.length === 0 && popularBooks.length === 0 && (
+          <div className="text-center text-white/60">
+            <Book className="h-16 w-16 mx-auto mb-4 opacity-50" />
+            <p>No books found. Try searching for a different term or browse popular books.</p>
+          </div>
+        )}
       </div>
     </div>
   );

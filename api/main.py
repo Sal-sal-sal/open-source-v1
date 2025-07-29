@@ -29,6 +29,7 @@ from api.routes.notes import router as notes_router
 from api.routes.audio_chat import router as audio_chat_router
 from api.routes.pdf_to_audio import router as pdf_to_audio_router
 from api.routes.librivox import router as librivox_router
+from api.routes.gutenberg import router as gutenberg_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Initializing database...")
@@ -46,7 +47,8 @@ origins = [
     "http://127.0.0.1:4173",
     "http://10.68.243.54:5173",   # ваш IP для мобильного доступа
     "http://74.249.178.56:5173",  # если используешь IP
-    "https://learntug.ink"        # прод-домен
+    "https://learntug.ink",        # прод-домен
+    "http://10.68.96.124:5173"
 ]
 
 app.add_middleware(
@@ -79,3 +81,4 @@ app.include_router(notes_router)
 app.include_router(audio_chat_router)
 app.include_router(pdf_to_audio_router)
 app.include_router(librivox_router)
+app.include_router(gutenberg_router)
