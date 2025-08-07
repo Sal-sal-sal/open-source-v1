@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { createNotesFromChatHistory } from '../utils/notes';
 import { trackError } from '../utils/analytics';
 import { FileText } from 'lucide-react';
+import type { StructuredNote } from '../types/notes';
 
 interface CreateNotesButtonProps {
   chatId: string;
@@ -9,6 +10,7 @@ interface CreateNotesButtonProps {
   currentTime?: number; // For audio chats
   onSuccess?: () => void;
   onError?: (error: string) => void;
+  onNotesCreated?: (note: StructuredNote) => void;
   className?: string;
   disabled?: boolean;
 }
@@ -19,6 +21,7 @@ const CreateNotesButton: React.FC<CreateNotesButtonProps> = ({
   currentTime,
   onSuccess,
   onError,
+  onNotesCreated,
   className = '',
   disabled = false
 }) => {
@@ -29,7 +32,12 @@ const CreateNotesButton: React.FC<CreateNotesButtonProps> = ({
 
     setIsLoading(true);
     try {
-      await createNotesFromChatHistory(chatId, chatType, currentTime);
+      const note = await createNotesFromChatHistory(chatId, chatType, currentTime);
+      
+      // Call the new callback with the created note
+      if (onNotesCreated) {
+        onNotesCreated(note);
+      }
       
       if (onSuccess) {
         onSuccess();

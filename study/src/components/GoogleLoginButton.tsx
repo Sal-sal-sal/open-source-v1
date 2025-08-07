@@ -1,6 +1,6 @@
 import React from 'react';
 import { GoogleLogin } from '@react-oauth/google';
-import { trackRegistration, trackLogin, trackError } from '../utils/analytics';
+import { trackRegistration, trackLogin, trackSignUpAttempt, trackLoginAttempt, trackAuthenticationError } from '../utils/analytics';
 
 interface GoogleLoginButtonProps {
   onSuccess?: (token: string, isNewUser?: boolean) => void;
@@ -21,6 +21,9 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
   const handleSuccess = async (credentialResponse: any) => {
     try {
       console.log('Google login successful, ID token received');
+      
+      // Track login attempt
+      trackLoginAttempt('google');
       
       // Send ID token to backend
       const res = await fetch(`${API_BASE}/auth/google`, {
@@ -52,7 +55,7 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
 
     } catch (error) {
       console.error('Google authentication error:', error);
-      trackError('google_auth_failed', error instanceof Error ? error.message : 'Unknown error');
+      trackAuthenticationError('google', error instanceof Error ? error.message : 'Unknown error');
       
       if (onError) {
         onError(error instanceof Error ? error.message : 'Authentication failed');
@@ -62,7 +65,7 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
 
   const handleError = () => {
     console.error('Google login error');
-    trackError('google_oauth_error', 'Google login failed');
+    trackAuthenticationError('google', 'Google OAuth error');
     
     if (onError) {
       onError('Google login failed. Please try again.');

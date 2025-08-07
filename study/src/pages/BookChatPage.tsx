@@ -11,6 +11,23 @@ import { createBookChat } from '../utils/chat';
 import type { PDFPageData } from '../types/pdf';
 import { trackChatMessage, trackPageView, trackError } from '../utils/analytics';
 import CreateNotesButton from '../components/CreateNotesButton';
+import NotesCreatedModal from '../components/NotesCreatedModal';
+import { Send, Loader, Mic, Edit3, Check, X } from 'lucide-react';
+import { MessageList } from '../components/MessageList';
+import { api } from '../api/client';
+import { getGradient } from '../utils/gradients';
+
+interface CreatedNote {
+  id?: number;
+  title: string;
+  meaning: string;
+  association: string;
+  personal_relevance: string;
+  importance: string;
+  implementation_plan: string;
+  user_question?: string;
+  created_at?: string;
+}
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -51,6 +68,19 @@ const BookChatPage: React.FC = () => {
     const { addNote } = useNotes();
     const [pdfPageData, setPdfPageData] = useState<PDFPageData | null>(null);
     const [pageInputValue, setPageInputValue] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isVisible, setIsVisible] = useState(false);
+    const [isEditingNote, setIsEditingNote] = useState(false);
+    const [noteContent, setNoteContent] = useState('');
+    const [originalNote, setOriginalNote] = useState('');
+    const [isRecording, setIsRecording] = useState(false);
+    const [isTranscribing, setIsTranscribing] = useState(false);
+    const [audioTranscript, setAudioTranscript] = useState<string>('');
+    const [showNotesModal, setShowNotesModal] = useState(false);
+    const [createdNote, setCreatedNote] = useState<CreatedNote | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
 
     useEffect(() => {
         const fetchChatData = async () => {
@@ -202,6 +232,21 @@ const BookChatPage: React.FC = () => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    const handleNotesModalClose = () => {
+        setShowNotesModal(false);
+        setCreatedNote(null);
+    };
+
+    const handleNoteUpdate = async (updatedNote: CreatedNote) => {
+        try {
+            // Update note via API if needed
+            console.log('Note updated:', updatedNote);
+            setCreatedNote(updatedNote);
+        } catch (error) {
+            console.error('Error updating note:', error);
+        }
+    };
+
     return (
         <div className="flex h-full w-full bg-white dark:bg-[#1b1b1b] text-gray-900 dark:text-white">
             <div className="flex-[5] flex flex-col border-r border-gray-300 dark:border-gray-700 h-full">
@@ -261,17 +306,45 @@ const BookChatPage: React.FC = () => {
                     <div ref={chatEndRef} />
                 </div>
                 <div className="p-4 border-t border-gray-300 dark:border-gray-700">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2">
                         {chatId && messages.length > 0 && (
                             <CreateNotesButton
                                 chatId={chatId}
                                 chatType="book_chat"
-                                onSuccess={() => {
-                                    console.log('Notes created successfully from book chat');
+                                onNotesCreated={(note) => {
+                                    // Convert StructuredNote to CreatedNote format
+                                    const createdNote: CreatedNote = {
+                                        title: note.title,
+                                        meaning: note.meaning,
+                                        association: note.association,
+                                        personal_relevance: note.personal_relevance,
+                                        importance: note.importance,
+                                        implementation_plan: note.implementation_plan || '',
+                                    };
+                                    
+                                    // Set the created note and show modal automatically
+                                    setCreatedNote(createdNote);
+                                    setShowNotesModal(true);
+                                    
+                                    // Add success message to chat
+                                    const successMessage: BookChatMessage = {
+                                        role: 'assistant',
+                                        content: '✅ Заметка успешно создана с помощью ИИ!',
+                                        created_at: new Date().toISOString(),
+                                    };
+                                    setMessages(prev => [...prev, successMessage]);
                                 }}
                                 onError={(error) => {
-                                    console.error('Failed to create notes from book chat:', error);
+                                    console.error('Create notes error:', error);
+                                    const errorMessage: BookChatMessage = {
+                                        role: 'assistant',
+                                        content: `❌ Ошибка при создании заметки: ${error}`,
+                                        created_at: new Date().toISOString(),
+                                    };
+                                    setMessages(prev => [...prev, errorMessage]);
                                 }}
+                                className="bg-blue-600/80 text-white border border-blue-400/30 hover:bg-blue-700/80"
+                                disabled={!chatId}
                             />
                         )}
                     </div>
@@ -307,6 +380,13 @@ const BookChatPage: React.FC = () => {
                 onClose={() => setIsModalOpen(false)}
                 onSubmit={handlePageRangeSubmit}
                 totalPages={totalPages}
+            />
+            {/* Notes Created Modal */}
+            <NotesCreatedModal
+                isOpen={showNotesModal}
+                onClose={handleNotesModalClose}
+                createdNote={createdNote}
+                onNoteUpdate={handleNoteUpdate}
             />
         </div>
     );

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { setToken } from '../utils/auth';
-import { trackRegistration, trackError } from '../utils/analytics';
+import { trackRegistration, trackSignUpAttempt, trackAuthenticationError } from '../utils/analytics';
 import GoogleLoginButton from '../components/GoogleLoginButton';
 
 /// <reference types="vite/client" />
@@ -17,6 +17,10 @@ const RegisterPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    
+    // Track registration attempt
+    trackSignUpAttempt('email');
+    
     try {
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
@@ -37,7 +41,7 @@ const RegisterPage: React.FC = () => {
     } catch (err: any) {
       setError(err.message);
       // Track registration error
-      trackError('registration_failed', err.message);
+      trackAuthenticationError('email', err.message);
     }
   };
 

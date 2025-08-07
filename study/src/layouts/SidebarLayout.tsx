@@ -233,6 +233,7 @@ const SidebarLayout: React.FC = () => {
                         </div>
                         Notes
                     </Link>
+
                     <button
                         onClick={() => setIsUploadModalOpen(true)}
                         className="flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all"

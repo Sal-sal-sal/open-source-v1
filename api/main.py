@@ -30,6 +30,7 @@ from api.routes.audio_chat import router as audio_chat_router
 from api.routes.pdf_to_audio import router as pdf_to_audio_router
 from api.routes.librivox import router as librivox_router
 from api.routes.gutenberg import router as gutenberg_router
+from api.routes.subscription import router as subscription_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Initializing database...")
@@ -82,3 +83,4 @@ app.include_router(audio_chat_router)
 app.include_router(pdf_to_audio_router)
 app.include_router(librivox_router)
 app.include_router(gutenberg_router)
+app.include_router(subscription_router)

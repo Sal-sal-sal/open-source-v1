@@ -13,9 +13,21 @@ import Starfield from '../components/Starfield';
 import VideoUrlModal from '../components/VideoUrlModal';
 import AudioPage from './AudioPage';
 import CreateNotesButton from '../components/CreateNotesButton';
+import NotesCreatedModal from '../components/NotesCreatedModal';
 
 // --- TYPE DEFINITIONS ---
 
+interface CreatedNote {
+  id?: number;
+  title: string;
+  meaning: string;
+  association: string;
+  personal_relevance: string;
+  importance: string;
+  implementation_plan: string;
+  user_question?: string;
+  created_at?: string;
+}
 
 interface Message {
   id: string; // Changed from number to string for UUIDs
@@ -189,16 +201,26 @@ const ChatMessage: React.FC<{ message: Message }> = ({ message }) => {
 const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [noteContent, setNoteContent] = useState('');
+  const [originalNote, setOriginalNote] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [audioTranscript, setAudioTranscript] = useState<string>('');
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [createdNote, setCreatedNote] = useState<CreatedNote | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const chatId = searchParams.get('chat_id');
-  const { createChat } = useChat();
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const { t } = useTranslation();
   const [isDocumentMode, setIsDocumentMode] = useState(false);
   const [isBookChatMode, setIsBookChatMode] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [isAudioMode, setIsAudioMode] = useState(false);
-  const { t } = useTranslation();
   const isIdle = useIdle(15000); // 15 seconds
   const showIntro = !chatId;
 
@@ -259,6 +281,21 @@ const ChatPage: React.FC = () => {
   }, [isAudioMode, navigate]);
 
   const getFormattedTimestamp = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const handleNotesModalClose = () => {
+    setShowNotesModal(false);
+    setCreatedNote(null);
+  };
+
+  const handleNoteUpdate = async (updatedNote: CreatedNote) => {
+    try {
+      // Update note via API if needed
+      console.log('Note updated:', updatedNote);
+      setCreatedNote(updatedNote);
+    } catch (error) {
+      console.error('Error updating note:', error);
+    }
+  };
 
   const fetchVideoSummary = async (url: string, forChatId: string, isNewChat: boolean) => {
     if (!isNewChat) {
@@ -475,12 +512,39 @@ const ChatPage: React.FC = () => {
                     <CreateNotesButton
                       chatId={chatId}
                       chatType="chat"
-                      onSuccess={() => {
-                        // Можно добавить уведомление об успехе
-                        console.log('Notes created successfully');
+                      onNotesCreated={(note) => {
+                        // Convert StructuredNote to CreatedNote format
+                        const createdNote: CreatedNote = {
+                          title: note.title,
+                          meaning: note.meaning,
+                          association: note.association,
+                          personal_relevance: note.personal_relevance,
+                          importance: note.importance,
+                          implementation_plan: note.implementation_plan || '',
+                        };
+                        
+                        // Set the created note and show modal automatically
+                        setCreatedNote(createdNote);
+                        setShowNotesModal(true);
+                        
+                        // Add success message to chat
+                        const successMessage: Message = {
+                          id: crypto.randomUUID(),
+                          text: '✅ Заметка успешно создана с помощью ИИ!',
+                          sender: 'assistant',
+                          timestamp: getFormattedTimestamp(),
+                        };
+                        setMessages(prev => [...prev, successMessage]);
                       }}
                       onError={(error) => {
                         console.error('Failed to create notes:', error);
+                        const errorMessage: Message = {
+                          id: crypto.randomUUID(),
+                          text: `❌ Ошибка при создании заметки: ${error}`,
+                          sender: 'assistant',
+                          timestamp: getFormattedTimestamp(),
+                        };
+                        setMessages(prev => [...prev, errorMessage]);
                       }}
                     />
                   )}
@@ -508,6 +572,13 @@ const ChatPage: React.FC = () => {
         isOpen={isVideoModalOpen}
         onClose={() => setIsVideoModalOpen(false)}
         onSubmit={handleVideoSummarySubmit}
+      />
+      {/* Notes Created Modal */}
+      <NotesCreatedModal
+        isOpen={showNotesModal}
+        onClose={handleNotesModalClose}
+        createdNote={createdNote}
+        onNoteUpdate={handleNoteUpdate}
       />
     </div>
   );

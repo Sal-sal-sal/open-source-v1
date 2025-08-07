@@ -29,6 +29,7 @@ class User(SQLModel, table=True):
     book_chats: List["BookChat"] = Relationship(back_populates="user")
     audio_chats: List["AudioChat"] = Relationship(back_populates="user") # Новая связь
     notes: List["Note"] = Relationship(back_populates="user")
+    subscriptions: List["Subscription"] = Relationship(back_populates="user")
 
 load_dotenv()
 
@@ -151,6 +152,19 @@ class AudioChatMessage(SQLModel, table=True):
     role: str
     content: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Subscription(SQLModel, table=True):
+    __tablename__ = 'subscriptions'
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    user_id: str = Field(foreign_key="users.id", index=True)
+    plan_type: str = Field(default="free")  # free, basic, premium
+    status: str = Field(default="active")  # active, cancelled, expired
+    start_date: datetime = Field(default_factory=datetime.utcnow)
+    end_date: Optional[datetime] = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    user: "User" = Relationship(back_populates="subscriptions")
 
 async def init_db():
     async with engine.begin() as conn:

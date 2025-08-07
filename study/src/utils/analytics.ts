@@ -144,4 +144,59 @@ export const trackFeatureUsage = (featureName: string, action?: string): void =>
     feature_name: featureName,
     action,
   });
+};
+
+// Subscription tracking
+export const trackSubscriptionStarted = (planType: string): void => {
+  trackEvent('subscription_started', { plan_type: planType });
+};
+
+export const trackSubscriptionUpgraded = (fromPlan: string, toPlan: string): void => {
+  trackEvent('subscription_upgraded', { 
+    from_plan: fromPlan, 
+    to_plan: toPlan 
+  });
+};
+
+export const trackSubscriptionCancelled = (planType: string): void => {
+  trackEvent('subscription_cancelled', { plan_type: planType });
+};
+
+export const trackSubscriptionDowngraded = (fromPlan: string, toPlan: string): void => {
+  trackEvent('subscription_downgraded', { 
+    from_plan: fromPlan, 
+    to_plan: toPlan 
+  });
+};
+
+// Enhanced authentication tracking
+export const trackSignUpAttempt = (method: 'email' | 'google'): void => {
+  trackEvent('sign_up_attempt', { method });
+};
+
+export const trackLoginAttempt = (method: 'email' | 'google'): void => {
+  trackEvent('login_attempt', { method });
+};
+
+export const trackAuthenticationError = (method: 'email' | 'google', errorType: string): void => {
+  trackEvent('authentication_error', { 
+    method, 
+    error_type: errorType 
+  });
+};
+
+// User engagement tracking
+export const trackUserEngagement = (engagementType: string, duration?: number): void => {
+  trackEvent('user_engagement', {
+    engagement_type: engagementType,
+    duration,
+  });
+};
+
+// Page performance tracking
+export const trackPagePerformance = (pageName: string, loadTime: number): void => {
+  trackEvent('page_performance', {
+    page_name: pageName,
+    load_time: loadTime,
+  });
 }; 
